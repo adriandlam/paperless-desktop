@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+	/* SF Pro on a Mac, like the app itself */
+	--font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+	/* the green of the Paperless leaf */
+	--color-leaf: #17541f;
+}
