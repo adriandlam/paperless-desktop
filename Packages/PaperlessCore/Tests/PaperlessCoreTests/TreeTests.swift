@@ -20,7 +20,7 @@ final class TreeTests: XCTestCase {
                 doc(5, "Script", archived: false, original: "run.command"),
             ],
             tags: [Named(id: 7, name: "Taxes"), Named(id: 8, name: "Unused")],
-            correspondents: [Named(id: 3, name: "CRA")], documentTypes: [])
+            correspondents: [Named(id: 3, name: "CRA")], documentTypes: [], trash: [doc(6, "Old receipt")])
         let nodes = buildTree(lib, sizes: [1: 386_404])
         let names = Dictionary(grouping: nodes, by: \.parent).mapValues { Set($0.map(\.name)) }
         XCTAssertEqual(nodes.first { $0.id == "doc:1@all" }?.size, 386_404)
@@ -40,11 +40,17 @@ final class TreeTests: XCTestCase {
         XCTAssertEqual(Set(nodes.map(\.id)).count, nodes.count)
         // Folders are dated by their newest document, not left at 1970.
         XCTAssertEqual(nodes.first { $0.id == "years" }?.created, "2026-03-01")
+        // Move to Trash only works in All Documents, and Paperless's trash keeps the All Documents id.
+        XCTAssertEqual(Set(nodes.filter(\.isTrashable).map(\.id)), ["doc:1@all", "doc:2@all", "doc:3@all", "doc:4@all", "doc:5@all"])
+        XCTAssertEqual(nodes.filter(\.isTrashed).map(\.id), ["doc:6@all"])
+        XCTAssertEqual(names[Node.trash], ["2026-03-01 Old receipt.pdf"])
         XCTAssertEqual(nodes.first { $0.id == "year:2025" }?.created, "2025-05-05")
 
         let offline = buildTree(lib, offline: true)
         XCTAssertEqual(offline.filter(\.keepDownloaded).map(\.id), ["all", "correspondents", "tags", "types", "years"])
         XCTAssertNotEqual(offline.first { $0.id == "all" }?.version, nodes.first { $0.id == "all" }?.version)
+        // A file's content version ignores its name, tags and the revision, so those don't trigger a download.
+        XCTAssertEqual(nodes.first { $0.id == "doc:1@all" }?.contentVersion, nodes.first { $0.id == "doc:1@tag:7" }?.contentVersion)
     }
 
     func testUploadFields() {

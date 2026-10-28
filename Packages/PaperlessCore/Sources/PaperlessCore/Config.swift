@@ -99,8 +99,9 @@ public struct Snapshot: Codable, Sendable {
         (try? JSONDecoder().decode(Snapshot.self, from: Data(contentsOf: shared("snapshot.json")))) ?? Snapshot()
     }
 
-    public mutating func record(_ nodes: [Node]) {
-        generation += 1
+    /// A full listing keeps the generation: the system takes its sync anchor just before it asks for one.
+    public mutating func record(_ nodes: [Node], newGeneration: Bool = true) {
+        if newGeneration { generation += 1 }
         versions = Dictionary(nodes.map { ($0.id, $0.version) }, uniquingKeysWith: { a, _ in a })
         save()
     }

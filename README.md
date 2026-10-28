@@ -2,17 +2,21 @@
 
 Your [Paperless-ngx](https://docs.paperless-ngx.com) library in Finder, the way iCloud Drive is.
 
-- **A Finder location** in the sidebar, with folders for All Documents, Correspondents, Tags,
+- A Finder location in the sidebar, with folders for All Documents, Correspondents, Tags,
   Document Types and Years. A document shows up in every folder it belongs to.
-- **Downloads on open**, with thumbnails and Quick Look from Paperless's own previews.
-- **Offline copies**: right-click → Keep Downloaded on any folder, or turn on Make all documents
-  available offline in Settings to keep the whole library on this Mac.
-- **Finder tags** match the document's Paperless tags.
-- **Upload by drag and drop**: drop a file into any folder and Paperless consumes it. Dropping it
-  into a tag, correspondent or document type folder sets that on the new document.
-- **Your password is used once** to get an API token, which is kept in the Keychain.
+- Documents download when you open them, with thumbnails and Quick Look from Paperless's own
+  previews.
+- Offline copies: right-click a folder → Keep Downloaded, or turn on Make all documents available
+  offline in Settings to keep the whole library on this Mac.
+- Paperless tags show up as Finder tags.
+- Drop a file into any folder to upload it. Dropping it into a tag, correspondent or document type
+  folder sets that on the new document.
+- Move to Trash works in All Documents: the document goes to Paperless's trash and shows up in
+  Finder's Trash. Put Back restores it, and emptying the Trash deletes it from Paperless for good.
+  Paperless empties its trash after 30 days by default.
+- Your password is used once, to get an API token that's kept in the Keychain.
 
-Everything else is read-only: renaming, moving or deleting in Finder doesn't touch Paperless.
+Everything else is read-only: documents can't be renamed, moved, edited, or trashed from other folders.
 
 ## Requirements
 
@@ -68,8 +72,8 @@ with Sync Now.
 - Finder tags you add yourself stay on this Mac.
 - A file Paperless won't take (an unsupported type, say) keeps a sync error in Finder with
   Paperless's reason. Delete it there.
-- A file Paperless accepts but then fails to consume stays in place with "(upload failed)" in its name; check the file
-  tasks page in Paperless for the reason, then delete the file.
+- A file Paperless accepts but then fails to consume stays in place with "(upload failed)" in its
+  name. Check the file tasks page in Paperless for the reason, then delete the file.
 
 ## Development
 
