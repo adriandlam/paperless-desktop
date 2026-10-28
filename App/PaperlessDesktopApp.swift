@@ -96,7 +96,7 @@ struct SettingsView: View {
     @State private var password = ""
     @State private var code = ""
     @State private var token = ""
-    @State private var status = ""
+    @State private var status = Config.load() == nil ? "Not connected" : "Connected"
     @State private var online: Bool?  // whether the last check worked; nil before one
     @State private var checking = false
     @State private var offline = Config.load()?.offline ?? false
@@ -121,14 +121,16 @@ struct SettingsView: View {
                     TextField("2FA code", text: $code, prompt: Text("Optional"))
                 }
                 LabeledContent("Status") {
-                    if checking {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        HStack(spacing: 6) {
+                    HStack(spacing: 6) {
+                        // The spinner takes the dot's place, so nothing moves while checking.
+                        ZStack {
                             Image(systemName: "circle.fill").font(.system(size: 8))
                                 .foregroundStyle(online == nil ? .gray : online! ? .green : .red)
-                            Text(status)
+                                .opacity(checking ? 0 : 1)
+                            if checking { ProgressView().controlSize(.mini) }
                         }
+                        .frame(width: 12, height: 12)
+                        Text(status).lineLimit(1).help(status)
                     }
                 }
                 HStack {
@@ -173,13 +175,10 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 460)
-        .fixedSize()
+        // Fixed, like System Settings, so switching Authentication doesn't resize the window.
+        .frame(width: 460, height: 598)
         .onDisappear { NSApp.setActivationPolicy(.accessory) }
-        .task {
-            guard connected else { return status = "Not connected" }
-            await check()
-        }
+        .task { if connected { await check() } }
         .confirmationDialog("Disconnect from Paperless?", isPresented: $confirmDisconnect) {
             Button("Disconnect", role: .destructive) { Task { await disconnect() } }
         } message: {
