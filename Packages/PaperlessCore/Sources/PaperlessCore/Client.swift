@@ -104,8 +104,13 @@ public struct Client: Sendable {
     }
 
     /// Fails with `APIError.unauthorized` when the token is wrong.
-    public func check() async throws {
-        _ = try await get("api/documents/", [URLQueryItem(name: "page_size", value: "1")])
+    /// Who the token belongs to, which also proves the server and the token work.
+    public func username() async throws -> String {
+        struct Settings: Decodable {
+            struct User: Decodable { var username: String }
+            var user: User
+        }
+        return try decoder.decode(Settings.self, from: try await get("api/ui_settings/")).user.username
     }
 
     // ponytail: refetches the whole library on every refresh; switch to `modified__gt` deltas if it gets slow

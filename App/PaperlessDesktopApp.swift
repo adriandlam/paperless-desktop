@@ -72,6 +72,7 @@ struct SettingsView: View {
     @State private var code = ""
     @State private var token = ""
     @State private var status = ""  // progress, or why connecting failed
+    @State private var online: Bool?  // whether the saved server and token work; nil while checking
     @State private var offline = Config.load()?.offline ?? false
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
     @State private var confirmDisconnect = false
@@ -81,7 +82,16 @@ struct SettingsView: View {
             Section {
                 if connected {
                     LabeledContent("Server", value: server)
-                    LabeledContent("Status") { Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                    LabeledContent("Username", value: username)
+                    // The password isn't kept, only the token.
+                    LabeledContent("API token", value: "••••••••••••")
+                    LabeledContent("Status") {
+                        HStack(spacing: 6) {
+                            Image(systemName: "circle.fill").font(.system(size: 8))
+                                .foregroundStyle(online == nil ? .gray : online! ? .green : .red)
+                            Text(online == nil ? "Checking…" : online! ? "Connected" : status)
+                        }
+                    }
                 } else {
                     TextField("Server URL", text: $server, prompt: Text("https://paperless.example.com"))
                     Picker("Sign in with", selection: $useToken) {
@@ -98,7 +108,7 @@ struct SettingsView: View {
                     }
                 }
                 HStack {
-                    Text(status).foregroundStyle(.secondary)
+                    if !connected { Text(status).foregroundStyle(.secondary) }
                     Spacer()
                     if connected {
                         Button("Disconnect…") { confirmDisconnect = true }
@@ -135,6 +145,20 @@ struct SettingsView: View {
         .frame(width: 460)
         .fixedSize()
         .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        .task(id: connected) {
+            guard connected, let client = Config.load()?.client else { return }
+            online = nil
+            do {
+                username = try await client.username()
+                online = true
+            } catch APIError.unauthorized {
+                status = "Token rejected; disconnect and sign in again"
+                online = false
+            } catch {
+                status = "Can't reach the server"
+                online = false
+            }
+        }
         .confirmationDialog("Disconnect from Paperless?", isPresented: $confirmDisconnect) {
             Button("Disconnect", role: .destructive) { Task { await disconnect() } }
         } message: {
@@ -154,7 +178,7 @@ struct SettingsView: View {
                 token.isEmpty
                 ? try await Client.token(server: url, username: username, password: password, code: code)
                 : token.trimmingCharacters(in: .whitespaces)
-            try await Client(server: url, token: key).check()
+            _ = try await Client(server: url, token: key).username()
             password = ""
             code = ""
             try Token.save(key)
