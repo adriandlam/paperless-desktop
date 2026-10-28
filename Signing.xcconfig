@@ -1,0 +1,8 @@
+// Your Apple Developer team ID and a reverse-DNS prefix you own.
+// To build under your own team, put both in Local.xcconfig (gitignored) instead of editing this file.
+DEVELOPMENT_TEAM = X5A5J9HMFU
+BUNDLE_ID_PREFIX = org.adrianlam
+// Shared by the app and the Finder extension: app group container and keychain group.
+APP_GROUP = $(DEVELOPMENT_TEAM).$(BUNDLE_ID_PREFIX).PaperlessDesktop
+
+#include? "Local.xcconfig"
