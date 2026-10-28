@@ -85,4 +85,6 @@ make format
 
 ## License
 
-MIT
+MIT, except the leaf in the app icon (`App/AppIcon.icon/Assets/leaf.svg`), which is the
+Paperless-ngx logo under that project's GPL-3.0 licence. Paperless Desktop isn't affiliated with
+Paperless-ngx.
