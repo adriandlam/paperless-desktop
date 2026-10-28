@@ -70,7 +70,9 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 let task = try await config.client.upload(url, name: itemTemplate.filename, fields: uploadFields(into: parent))
                 // Stands in for the document until Paperless has consumed it; the next refresh swaps in the real one.
                 let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize
-                let node = Node(id: "upload:\(task)", parent: parent, name: itemTemplate.filename, version: "uploading", size: size)
+                let node = Node(
+                    id: "upload:\(task)", parent: parent, name: itemTemplate.filename, version: "uploading",
+                    created: Date.now.ISO8601Format(), size: size)
                 await Store.shared.addUpload(node)
                 progress.completedUnitCount = 1
                 completionHandler(Item(node), [], false, nil)
@@ -243,7 +245,9 @@ final class Item: NSObject, NSFileProviderItem {
         let v = Data(node.version.utf8)
         return NSFileProviderItemVersion(contentVersion: v, metadataVersion: v)
     }
-    // The document's date, so Finder's date column sorts by when the document is from.
-    var creationDate: Date? { node.created.flatMap { try? Date($0 + "T12:00:00Z", strategy: .iso8601) } }
+    // The document's date, so Finder's date column sorts by when the document is from. An upload's is the paste time.
+    var creationDate: Date? {
+        node.created.flatMap { (try? Date($0, strategy: .iso8601)) ?? (try? Date($0 + "T12:00:00Z", strategy: .iso8601)) }
+    }
     var contentModificationDate: Date? { creationDate }
 }
