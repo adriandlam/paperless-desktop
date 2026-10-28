@@ -89,10 +89,14 @@ private func title(_ d: Document) -> String {
     return stem.isEmpty ? "Document \(d.id)" : stem
 }
 
+/// Document types only: an uploaded "invoice.command" must not become a script Finder runs on double-click.
+private let documentExtensions: Set = ["pdf", "png", "jpg", "jpeg", "heic", "tif", "tiff", "gif", "webp", "txt", "csv", "md",
+                                       "eml", "rtf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp"]
+
 private func fileExtension(_ d: Document) -> String {
     if d.archivedFileName != nil { return "pdf" }
     let ext = ((d.originalFileName ?? "") as NSString).pathExtension.lowercased()
-    return ext.isEmpty ? "pdf" : ext
+    return ext.isEmpty ? "pdf" : documentExtensions.contains(ext) ? ext : "bin"
 }
 
 private func clean(_ name: String) -> String {
