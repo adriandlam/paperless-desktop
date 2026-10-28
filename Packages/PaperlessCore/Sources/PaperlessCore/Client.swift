@@ -74,9 +74,11 @@ public struct Client: Sendable {
     private func all<T: Decodable>(_ path: String, fields: String) async throws -> [T] {
         var out: [T] = []
         for page in 1... {
-            let query = [URLQueryItem(name: "page", value: "\(page)"),
-                         URLQueryItem(name: "page_size", value: "1000"),
-                         URLQueryItem(name: "fields", value: fields)]
+            let query = [
+                URLQueryItem(name: "page", value: "\(page)"),
+                URLQueryItem(name: "page_size", value: "1000"),
+                URLQueryItem(name: "fields", value: fields),
+            ]
             let p = try decoder.decode(Page<T>.self, from: try await get(path, query))
             out += p.results
             if p.next == nil { break }
@@ -108,7 +110,8 @@ public struct Client: Sendable {
 
     // ponytail: refetches the whole library on every refresh; switch to `modified__gt` deltas if it gets slow
     public func library() async throws -> Library {
-        async let documents: [Document] = all("api/documents/", fields: "id,title,created,modified,correspondent,document_type,tags,original_file_name,archived_file_name")
+        async let documents: [Document] = all(
+            "api/documents/", fields: "id,title,created,modified,correspondent,document_type,tags,original_file_name,archived_file_name")
         async let tags: [Named] = all("api/tags/", fields: "id,name")
         async let correspondents: [Named] = all("api/correspondents/", fields: "id,name")
         async let types: [Named] = all("api/document_types/", fields: "id,name")

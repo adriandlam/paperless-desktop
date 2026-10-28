@@ -94,7 +94,8 @@ struct SettingsView: View {
         status = "Checking…"
         do {
             // Only the token is saved, in the keychain; the password is used once, here.
-            let key = token.isEmpty
+            let key =
+                token.isEmpty
                 ? try await Client.token(server: url, username: username, password: password, code: code)
                 : token.trimmingCharacters(in: .whitespaces)
             try await Client(server: url, token: key).check()
