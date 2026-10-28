@@ -8,12 +8,17 @@ let domain = NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("pa
 @main
 struct PaperlessDesktopApp: App {
     init() {
+        UserDefaults.standard.set(Config.load() != nil, forKey: "connected")
         scheduleSync()
         refresh()
     }
 
     var body: some Scene {
-        MenuBarExtra("Paperless", systemImage: "leaf.fill") { MenuContent() }
+        MenuBarExtra {
+            MenuContent()
+        } label: {
+            MenuBarIcon()
+        }
         Window("Paperless Desktop", id: "settings") { SettingsView() }
             .windowResizability(.contentSize)
             .defaultLaunchBehavior(Config.load() == nil ? .presented : .suppressed)
@@ -52,18 +57,53 @@ private let syncTime = {
     return f
 }()
 
+/// The menu bar leaf: filled while syncing works, with a "!" when the last sync failed, an outline when signed out.
+struct MenuBarIcon: View {
+    @AppStorage("connected") private var connected = false
+    @AppStorage("lastSyncError", store: LastSync.defaults) private var syncError: String?
+
+    var body: some View {
+        if !connected {
+            Image(systemName: "leaf")
+        } else if syncError != nil {
+            Image(nsImage: failedLeaf)
+        } else {
+            Image(systemName: "leaf.fill")
+        }
+    }
+}
+
+/// leaf.fill with an exclamation mark badge cut into its corner, like Time Machine's failed-backup icon.
+/// SF Symbols has no badged leaf.
+private let failedLeaf = {
+    let leaf = NSImage(systemSymbolName: "leaf.fill", accessibilityDescription: "Sync failed")!
+    let badge = NSImage(systemSymbolName: "exclamationmark.circle.fill", accessibilityDescription: nil)!
+        .withSymbolConfiguration(.init(pointSize: 7, weight: .bold))!
+    let image = NSImage(size: leaf.size, flipped: false) { rect in
+        leaf.draw(in: rect)
+        let spot = NSRect(x: rect.maxX - badge.size.width, y: 0, width: badge.size.width, height: badge.size.height)
+        NSGraphicsContext.current?.compositingOperation = .clear
+        NSBezierPath(ovalIn: spot.insetBy(dx: -1.2, dy: -1.2)).fill()
+        NSGraphicsContext.current?.compositingOperation = .sourceOver
+        badge.draw(in: spot)
+        return true
+    }
+    image.isTemplate = true
+    return image
+}()
+
 struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
+    @AppStorage("connected") private var connected = false
     // Written by the extension; @AppStorage redraws the menu when it changes.
     @AppStorage("lastSync", store: LastSync.defaults) private var lastSync = 0.0
     @AppStorage("lastSyncError", store: LastSync.defaults) private var syncError: String?
 
     var body: some View {
-        Text("Paperless Desktop \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
         Text(lastSynced())
-        Button("Sync Now", action: refresh)
+        Button("Sync Now", action: refresh).disabled(!connected)
         Divider()
-        Button("Open in Finder") { Task { await openInFinder() } }
+        Button("Open in Finder") { Task { await openInFinder() } }.disabled(!connected)
         Button("Settings…", systemImage: "gearshape") {
             // A menu bar app can't take focus from the frontmost app, so act as a regular one while Settings is open.
             NSApp.setActivationPolicy(.regular)
@@ -82,6 +122,7 @@ struct MenuContent: View {
     }
 
     private func lastSynced() -> String {
+        if !connected { return "Not connected" }
         if let syncError { return "Sync failed: \(syncError)" }
         guard lastSync > 0 else { return "Not synced yet" }
         return "Last synced " + syncTime.string(from: Date(timeIntervalSince1970: lastSync))
@@ -90,7 +131,7 @@ struct MenuContent: View {
 
 struct SettingsView: View {
     @State private var server = Config.load()?.server.absoluteString ?? ""
-    @State private var connected = Config.load() != nil
+    @AppStorage("connected") private var connected = false  // set from Config at launch
     @State private var useToken = false
     @State private var username = ""
     @State private var password = ""
