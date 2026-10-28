@@ -134,7 +134,6 @@ struct SettingsView: View {
                     }
                 }
                 HStack {
-                    if connected { Button("Disconnect…") { confirmDisconnect = true } }
                     Spacer()
                     Button("Test Connection") { Task { await check() } }
                     Button("Save") { Task { await save() } }.keyboardShortcut(.defaultAction)
@@ -167,16 +166,27 @@ struct SettingsView: View {
                 }
                 .onChange(of: syncInterval) { scheduleSync() }
             }
-            Section("System") {
+            Section {
                 Toggle("Open at login", isOn: $openAtLogin)
                     .onChange(of: openAtLogin) {
                         try? openAtLogin ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
                     }
+            } header: {
+                Text("System")
+            } footer: {
+                // Apart from Save, like Sign Out… at the bottom of Apple Account.
+                if connected {
+                    HStack {
+                        Button("Disconnect…") { confirmDisconnect = true }
+                        Spacer()
+                    }
+                    .padding(.top, 8)
+                }
             }
         }
         .formStyle(.grouped)
         // Fixed, like System Settings, so switching Authentication doesn't resize the window.
-        .frame(width: 460, height: 598)
+        .frame(width: 460, height: 640)
         .onDisappear { NSApp.setActivationPolicy(.accessory) }
         .task { if connected { await check() } }
         .confirmationDialog("Disconnect from Paperless?", isPresented: $confirmDisconnect) {
