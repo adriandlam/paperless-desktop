@@ -44,6 +44,12 @@ struct MenuContent: View {
         Button("Settings…") {
             openWindow(id: "settings")
             NSApp.activate()
+            // A menu bar app's activate() can leave the window behind the frontmost app, so raise it too.
+            DispatchQueue.main.async {
+                guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" }) else { return }
+                window.orderFrontRegardless()
+                window.makeKey()
+            }
         }
         Button("Quit") { NSApp.terminate(nil) }
     }
