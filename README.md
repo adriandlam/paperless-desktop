@@ -44,11 +44,11 @@ because the app and its Finder extension share the token through a Keychain grou
 
 1. Open Paperless Desktop. Its window asks for your server URL and your Paperless username and
    password (plus a 2FA code if your account has one), or an API token instead.
-2. Click **Connect**. **Paperless** appears in Finder's sidebar under Locations.
+2. Click **Save**. **Paperless** appears in Finder's sidebar under Locations.
 
 The leaf in the menu bar shows when the library last synced, with Sync Now, Open in Finder and
-Settings. Leave the app running: it checks
-Paperless for changes every 5 minutes and starts at login.
+Settings. Leave the app running: it checks Paperless for changes every 5 minutes, and opens at
+login unless you turn that off in Settings.
 
 ## How it works
 
