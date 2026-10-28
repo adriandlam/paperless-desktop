@@ -38,6 +38,9 @@ final class TreeTests: XCTestCase {
         XCTAssertEqual(names["correspondent:3"], ["2026-03-01 Tax-Return.pdf"])
         XCTAssertEqual(names["years"], ["2026", "2025"])
         XCTAssertEqual(Set(nodes.map(\.id)).count, nodes.count)
+        // Folders are dated by their newest document, not left at 1970.
+        XCTAssertEqual(nodes.first { $0.id == "years" }?.created, "2026-03-01")
+        XCTAssertEqual(nodes.first { $0.id == "year:2025" }?.created, "2025-05-05")
 
         let offline = buildTree(lib, offline: true)
         XCTAssertEqual(offline.filter(\.keepDownloaded).map(\.id), ["all", "correspondents", "tags", "types", "years"])

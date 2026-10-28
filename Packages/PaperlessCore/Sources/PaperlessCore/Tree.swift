@@ -46,7 +46,7 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
     var taken: [String: Set<String>] = [:]  // lowercased, since APFS is case-insensitive
     let tagNames = Dictionary(lib.tags.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 
-    func add(_ id: String, in parent: String, named base: String, ext: String = "", doc: Document? = nil) {
+    func add(_ id: String, in parent: String, named base: String, ext: String = "", doc: Document? = nil, date: String?) {
         var name = clean(base) + ext
         if taken[parent, default: []].contains(name.lowercased()) {
             name = clean(base) + " (\(doc.map { String($0.id) } ?? id))" + ext
@@ -56,22 +56,27 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         let tags = doc?.tags.compactMap { tagNames[$0] }.sorted() ?? []
         var node = Node(
             id: id, parent: parent, name: name, documentID: doc?.id,
-            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? "\(name) r\(folderRevision)",
-            created: doc.map { String($0.created.prefix(10)) }, size: size)
+            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? "\(name) \(date ?? "") r\(folderRevision)",
+            created: date, size: size)
         node.tags = tags
         nodes.append(node)
     }
 
+    // A folder is dated by its newest document, the way a Finder folder shows its latest change.
+    func newest(_ docs: [Document]) -> String? { docs.map { String($0.created.prefix(10)) }.max() }
+
     func folder(_ id: String, _ name: String, in parent: String, docs: [Document]) {
-        add(id, in: parent, named: name)
+        add(id, in: parent, named: name, date: newest(docs))
         let sorted = docs.sorted { ($0.created, -$0.id) > ($1.created, -$1.id) }
         for d in sorted {
-            add("doc:\(d.id)@\(id)", in: id, named: "\(d.created.prefix(10)) \(title(d))", ext: "." + fileExtension(d), doc: d)
+            add(
+                "doc:\(d.id)@\(id)", in: id, named: "\(d.created.prefix(10)) \(title(d))", ext: "." + fileExtension(d), doc: d,
+                date: String(d.created.prefix(10)))
         }
     }
 
     func group(_ id: String, _ name: String, _ members: [(id: String, name: String, docs: [Document])]) {
-        add(id, in: Node.root, named: name)
+        add(id, in: Node.root, named: name, date: newest(members.flatMap(\.docs)))
         for m in members where !m.docs.isEmpty { folder(m.id, m.name, in: id, docs: m.docs) }
     }
 
