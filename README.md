@@ -5,8 +5,8 @@ Your [Paperless-ngx](https://docs.paperless-ngx.com) library in Finder, the way 
 - **A Finder location** in the sidebar, with folders for All Documents, Correspondents, Tags,
   Document Types and Years. A document shows up in every folder it belongs to.
 - **Downloads on open**, with thumbnails and Quick Look from Paperless's own previews.
-- **Offline copies**: right-click → Keep Downloaded on any folder, or flip one switch to keep the
-  whole library on this Mac.
+- **Offline copies**: right-click → Keep Downloaded on any folder, or turn on Make all documents
+  available offline in Settings to keep the whole library on this Mac.
 - **Finder tags** match the document's Paperless tags.
 - **Upload by drag and drop**: drop a file into any folder and Paperless consumes it. Dropping it
   into a tag, correspondent or document type folder sets that on the new document.
@@ -47,8 +47,8 @@ because the app and its Finder extension share the token through a Keychain grou
 2. Click **Save**. **Paperless** appears in Finder's sidebar under Locations.
 
 The leaf in the menu bar shows when the library last synced, with Sync Now, Open in Finder and
-Settings. Leave the app running: it checks Paperless for changes every 5 minutes, and opens at
-login unless you turn that off in Settings.
+Settings. Leave the app running: it checks Paperless for changes every 5 minutes (Settings →
+Check for changes), and opens at login unless you turn that off in Settings.
 
 ## How it works
 
@@ -57,8 +57,8 @@ Finder location. Each refresh fetches the document list, builds the folder tree,
 changed since the last one. Files download from `/api/documents/{id}/download/`, which gives the
 archived (OCR'd, searchable) PDF when Paperless made one, or the original otherwise.
 
-Paperless has no push notifications, so changes reach Finder on the next refresh: within 5
-minutes, or right away with Sync Now.
+Paperless has no push notifications, so changes reach Finder on the next check, or right away
+with Sync Now.
 
 ## Limitations
 
