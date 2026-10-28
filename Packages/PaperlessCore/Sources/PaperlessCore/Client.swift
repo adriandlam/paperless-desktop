@@ -30,6 +30,16 @@ public enum APIError: Error {
     case rejected(String)
 }
 
+/// A short explanation of a failed request, for the settings window and the menu bar.
+public func reason(_ error: Error) -> String {
+    switch error {
+    case APIError.unauthorized: "Token rejected"
+    case APIError.rejected(let message): message
+    case is URLError: "Can't reach the server"
+    default: error.localizedDescription
+    }
+}
+
 private struct Page<T: Decodable>: Decodable {
     var next: String?
     var results: [T]

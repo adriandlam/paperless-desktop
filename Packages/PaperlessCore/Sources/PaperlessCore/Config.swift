@@ -75,6 +75,17 @@ public enum Token {
     }
 }
 
+/// When the extension last fetched the library from Paperless, for the menu bar to show.
+public enum LastSync {
+    /// `lastSync` (seconds since 1970) and `lastSyncError` (why the last fetch failed) live here.
+    public static var defaults: UserDefaults? { UserDefaults(suiteName: appGroup) }
+
+    public static func record(_ error: Error?) {
+        if error == nil { defaults?.set(Date.now.timeIntervalSince1970, forKey: "lastSync") }
+        defaults?.set(error.map(reason), forKey: "lastSyncError")
+    }
+}
+
 /// The node versions Finder last heard about, so a refresh can report deletions.
 public struct Snapshot: Codable, Sendable {
     public var generation = 0
