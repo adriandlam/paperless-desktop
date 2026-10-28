@@ -20,15 +20,7 @@ public struct Config: Codable, Sendable {
     public var client: Client { Client(server: server, token: Token.load() ?? "") }
 
     public static func load() -> Config? {
-        guard let data = try? Data(contentsOf: shared("config.json")),
-            let config = try? JSONDecoder().decode(Config.self, from: data)
-        else { return nil }
-        // 0.1 kept the token in this file; move it to the keychain.
-        struct Legacy: Decodable { var token: String? }
-        if let token = (try? JSONDecoder().decode(Legacy.self, from: data))?.token, (try? Token.save(token)) != nil {
-            try? config.save()
-        }
-        return config
+        try? JSONDecoder().decode(Config.self, from: Data(contentsOf: shared("config.json")))
     }
 
     public func save() throws {

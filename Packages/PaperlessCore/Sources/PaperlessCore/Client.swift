@@ -169,7 +169,7 @@ public struct Client: Sendable {
     public func uploadSucceeded(_ task: String) async throws -> Bool? {
         struct Task: Decodable { var status: String }
         let data = try await get("api/tasks/", [URLQueryItem(name: "task_id", value: task)])
-        let tasks = try (try? decoder.decode(Page<Task>.self, from: data).results) ?? decoder.decode([Task].self, from: data)
+        let tasks = try decoder.decode(Page<Task>.self, from: data).results
         switch tasks.first?.status.lowercased() {
         case "success": return true
         case "failure", "revoked": return false
