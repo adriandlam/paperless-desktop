@@ -83,7 +83,8 @@ make format
 - `App/`: the menu bar app (settings, login, refresh timer)
 - `Extension/`: the File Provider extension
 - `Packages/PaperlessCore/`: the Paperless API client, the folder tree and config, shared by both
-- `site/`: the homepage, a Next.js static export deployed to GitHub Pages (`cd site && bun install && bun dev`)
+- `site/`: the homepage, a Next.js static export deployed to GitHub Pages
+  (`cd site && bun install && bun dev`)
 
 `project.yml` generates the Xcode project, so edit that rather than the `.xcodeproj`.
 
