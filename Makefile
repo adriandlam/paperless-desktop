@@ -13,6 +13,8 @@ install: build
 	-osascript -e 'quit app "PaperlessDesktop"'
 	-pkill -x PaperlessFileProvider
 	ditto $(APP) /Applications/PaperlessDesktop.app
+	# so Finder notices a changed icon
+	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/PaperlessDesktop.app
 	open /Applications/PaperlessDesktop.app
 
 test:
