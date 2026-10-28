@@ -186,15 +186,21 @@ actor Store {
     func all(fresh: Bool = false) async throws -> [Node] {
         if fresh || fetched.timeIntervalSinceNow < -30 {
             guard let config = Config.load() else { throw NSFileProviderError(.notAuthenticated) }
-            let lib = try await config.client.library()
-            let stale = lib.documents.filter { sizes[$0.id]?.modified != $0.modified }
-            try await withThrowingTaskGroup(of: (Document, Int).self) { group in
-                for doc in stale { group.addTask { (doc, try await config.client.size(of: doc)) } }
-                for try await (doc, size) in group { sizes[doc.id] = (doc.modified, size) }
+            do {
+                let lib = try await config.client.library()
+                let stale = lib.documents.filter { sizes[$0.id]?.modified != $0.modified }
+                try await withThrowingTaskGroup(of: (Document, Int).self) { group in
+                    for doc in stale { group.addTask { (doc, try await config.client.size(of: doc)) } }
+                    for try await (doc, size) in group { sizes[doc.id] = (doc.modified, size) }
+                }
+                let list = buildTree(lib, sizes: sizes.mapValues(\.size), offline: config.offline ?? false)
+                nodes = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                fetched = .now
+                LastSync.record(nil)
+            } catch {
+                LastSync.record(error)
+                throw error
             }
-            let list = buildTree(lib, sizes: sizes.mapValues(\.size), offline: config.offline ?? false)
-            nodes = Dictionary(list.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
-            fetched = .now
         }
         return Array(nodes.values) + uploads.values
     }
