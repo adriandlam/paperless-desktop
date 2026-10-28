@@ -1,5 +1,8 @@
 import Image from "next/image";
 import icon from "./icon.png";
+import finder from "./shots/finder.png";
+import menu from "./shots/menu.png";
+import settings from "./shots/settings.png";
 
 const repo = "https://github.com/adriandlam/paperless-desktop";
 
@@ -55,8 +58,8 @@ const questions = [
 
 export default function Home() {
 	return (
-		<main className="mx-auto max-w-3xl px-6">
-			<header className="flex flex-col items-center pt-24 pb-20 text-center">
+		<main className="px-6 [&>*]:mx-auto [&>*]:max-w-3xl">
+			<header className="flex flex-col items-center pt-24 pb-16 text-center">
 				<Image src={icon} alt="" width={128} height={128} />
 				<h1 className="mt-6 font-semibold text-5xl tracking-tight">
 					Paperless Desktop
@@ -83,7 +86,13 @@ export default function Home() {
 				</p>
 			</header>
 
-			<section className="grid gap-10 border-neutral-200 border-t py-16 sm:grid-cols-2 dark:border-neutral-800">
+			<Image
+				src={finder}
+				alt="A Finder window open on Paperless, showing receipts as files with thumbnails"
+				className="h-auto w-full max-w-5xl!"
+			/>
+
+			<section className="grid gap-10 py-16 sm:grid-cols-2">
 				{features.map((f) => (
 					<div key={f.title}>
 						<h2 className="font-semibold">{f.title}</h2>
@@ -92,6 +101,31 @@ export default function Home() {
 						</p>
 					</div>
 				))}
+			</section>
+
+			<section className="grid items-start gap-10 border-neutral-200 border-t py-16 sm:grid-cols-2 dark:border-neutral-800">
+				<figure>
+					<Image
+						src={menu}
+						alt="The menu bar menu: Last synced today at 13:07, Sync Now, Open in Finder, Settings, Quit"
+						className="h-auto w-full"
+					/>
+					<figcaption className="mt-3 text-neutral-600 dark:text-neutral-400">
+						The leaf in the menu bar shows when the library last synced, and
+						gets a ! if a sync fails.
+					</figcaption>
+				</figure>
+				<figure>
+					<Image
+						src={settings}
+						alt="The Settings window: server, sign-in, offline and sync options"
+						className="h-auto w-full"
+					/>
+					<figcaption className="mt-3 text-neutral-600 dark:text-neutral-400">
+						Sign in with a password or an API token, and choose how often to
+						check for changes.
+					</figcaption>
+				</figure>
 			</section>
 
 			<section className="border-neutral-200 border-t py-16 dark:border-neutral-800">
