@@ -46,9 +46,11 @@ struct MenuContent: View {
             Task { await openInFinder() }
         }
         Button("Settings…", systemImage: "gearshape") {
+            // A menu bar app can't take focus from the frontmost app, so act as a regular one while Settings is open.
+            NSApp.setActivationPolicy(.regular)
             openWindow(id: "settings")
             NSApp.activate()
-            // A menu bar app's activate() can leave the window behind the frontmost app, so raise it too.
+            // activate() is only a request; raise the window even if it's turned down.
             DispatchQueue.main.async {
                 guard let window = NSApp.windows.first(where: { $0.identifier?.rawValue == "settings" }) else { return }
                 window.orderFrontRegardless()
@@ -63,39 +65,81 @@ struct MenuContent: View {
 
 struct SettingsView: View {
     @State private var server = Config.load()?.server.absoluteString ?? ""
+    @State private var connected = Config.load() != nil
+    @State private var useToken = false
     @State private var username = ""
     @State private var password = ""
     @State private var code = ""
     @State private var token = ""
-    @State private var status = Config.load() == nil ? "Not connected" : "Connected"
+    @State private var status = ""  // progress, or why connecting failed
     @State private var offline = Config.load()?.offline ?? false
+    @State private var openAtLogin = SMAppService.mainApp.status == .enabled
+    @State private var confirmDisconnect = false
 
     var body: some View {
         Form {
-            TextField("Server", text: $server, prompt: Text("https://paperless.example.com"))
-            TextField("Username", text: $username)
-            SecureField("Password", text: $password)
-            TextField("2FA code", text: $code, prompt: Text("only if your account has one"))
-            Toggle("Keep all documents downloaded for offline use", isOn: $offline)
-                .onChange(of: offline) {
-                    guard var config = Config.load() else { return }
-                    config.offline = offline
-                    try? config.save()
-                    refresh()
+            Section {
+                if connected {
+                    LabeledContent("Server", value: server)
+                    LabeledContent("Status") { Label("Connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
+                } else {
+                    TextField("Server URL", text: $server, prompt: Text("https://paperless.example.com"))
+                    Picker("Sign in with", selection: $useToken) {
+                        Text("Password").tag(false)
+                        Text("API token").tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    if useToken {
+                        SecureField("API token", text: $token, prompt: Text("Paperless → My Profile → API Auth Token"))
+                    } else {
+                        TextField("Username", text: $username)
+                        SecureField("Password", text: $password)
+                        TextField("2FA code", text: $code, prompt: Text("If your account has one"))
+                    }
                 }
-            DisclosureGroup("Use an API token instead") {
-                SecureField("API token", text: $token)
-                Text("In Paperless: My Profile → API Auth Token").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Text(status).foregroundStyle(.secondary)
+                    Spacer()
+                    if connected {
+                        Button("Disconnect…") { confirmDisconnect = true }
+                    } else {
+                        Button("Connect") { Task { await connect() } }.keyboardShortcut(.defaultAction)
+                    }
+                }
+            } header: {
+                Text("Paperless Server")
+            } footer: {
+                if !connected { Text("Your password is used once, to get an API token that's kept in the Keychain.") }
             }
-            HStack {
-                Button("Connect") { Task { await connect() } }.keyboardShortcut(.defaultAction)
-                Button("Disconnect") { Task { await disconnect() } }
-                Spacer()
-                Text(status).foregroundStyle(.secondary)
+            Section {
+                Toggle("Keep all documents downloaded", isOn: $offline)
+                    .onChange(of: offline) {
+                        guard var config = Config.load() else { return }
+                        config.offline = offline
+                        try? config.save()
+                        refresh()
+                    }
+            } header: {
+                Text("Finder")
+            } footer: {
+                Text("Otherwise a document downloads when you open it. Right-click a folder → Keep Downloaded for just that folder.")
+            }
+            Section("System") {
+                Toggle("Open at login", isOn: $openAtLogin)
+                    .onChange(of: openAtLogin) {
+                        try? openAtLogin ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
+                    }
             }
         }
-        .padding()
-        .frame(width: 440)
+        .formStyle(.grouped)
+        .frame(width: 460)
+        .fixedSize()
+        .onDisappear { NSApp.setActivationPolicy(.accessory) }
+        .confirmationDialog("Disconnect from Paperless?", isPresented: $confirmDisconnect) {
+            Button("Disconnect", role: .destructive) { Task { await disconnect() } }
+        } message: {
+            Text("Paperless is removed from Finder, with any offline copies. Nothing changes in Paperless.")
+        }
     }
 
     private func connect() async {
@@ -118,7 +162,9 @@ struct SettingsView: View {
             try await NSFileProviderManager.add(domain)
             try? SMAppService.mainApp.register()  // keep refreshing after a reboot
             refresh()
-            status = "Connected"
+            openAtLogin = true
+            connected = true
+            status = ""
             await openInFinder()
         } catch APIError.rejected(let message) {
             status = message
@@ -132,6 +178,6 @@ struct SettingsView: View {
     private func disconnect() async {
         try? await NSFileProviderManager.remove(domain)
         Config.delete()
-        status = "Not connected"
+        connected = false
     }
 }
