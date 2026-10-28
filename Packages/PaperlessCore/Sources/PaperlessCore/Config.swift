@@ -41,6 +41,8 @@ public struct Config: Codable, Sendable {
         Token.delete()
         try? FileManager.default.removeItem(at: shared("config.json"))
         try? FileManager.default.removeItem(at: shared("snapshot.json"))
+        LastSync.defaults?.removeObject(forKey: "lastSync")
+        LastSync.defaults?.removeObject(forKey: "lastSyncError")
     }
 }
 

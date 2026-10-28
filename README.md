@@ -47,8 +47,10 @@ because the app and its Finder extension share the token through a Keychain grou
 2. Click **Save**. **Paperless** appears in Finder's sidebar under Locations.
 
 The leaf in the menu bar shows when the library last synced, with Sync Now, Open in Finder and
-Settings. Leave the app running: it checks Paperless for changes every 5 minutes (Settings →
-Check for changes), and opens at login unless you turn that off in Settings.
+Settings. It gets a ! when the last sync failed, and is hollow when you're signed out.
+
+Leave the app running: it checks Paperless for changes every 5 minutes (Settings → Check for
+changes), and opens at login unless you turn that off in Settings.
 
 ## How it works
 
