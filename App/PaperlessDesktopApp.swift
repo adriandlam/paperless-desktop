@@ -38,10 +38,14 @@ struct MenuContent: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Button("Refresh Now", action: refresh)
-        Button("Open in Finder") { Task { await openInFinder() } }
+        Text("Paperless Desktop \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
         Divider()
-        Button("Settings…") {
+        // Opening Finder also checks Paperless for changes, so it doubles as Refresh.
+        Button("Open in Finder") {
+            refresh()
+            Task { await openInFinder() }
+        }
+        Button("Settings…", systemImage: "gearshape") {
             openWindow(id: "settings")
             NSApp.activate()
             // A menu bar app's activate() can leave the window behind the frontmost app, so raise it too.
@@ -51,7 +55,9 @@ struct MenuContent: View {
                 window.makeKey()
             }
         }
-        Button("Quit") { NSApp.terminate(nil) }
+        .keyboardShortcut(",")
+        Divider()
+        Button("Quit Paperless Desktop") { NSApp.terminate(nil) }.keyboardShortcut("q")
     }
 }
 
