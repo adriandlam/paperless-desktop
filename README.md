@@ -46,7 +46,7 @@ because the app and its Finder extension share the token through a Keychain grou
    password (plus a 2FA code if your account has one), or an API token instead.
 2. Click **Connect**. **Paperless** appears in Finder's sidebar under Locations.
 
-The menu bar icon has Refresh Now, Open in Finder and Settings. Leave the app running: it checks
+The leaf in the menu bar has Open in Finder and Settings. Leave the app running: it checks
 Paperless for changes every 5 minutes and starts at login.
 
 ## How it works
@@ -57,7 +57,7 @@ changed since the last one. Files download from `/api/documents/{id}/download/`,
 archived (OCR'd, searchable) PDF when Paperless made one, or the original otherwise.
 
 Paperless has no push notifications, so changes reach Finder on the next refresh: within 5
-minutes, or right away with Refresh Now.
+minutes, or right away when you choose Open in Finder.
 
 ## Limitations
 

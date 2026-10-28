@@ -31,6 +31,8 @@ targets:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Paperless Desktop
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         AppGroup: $(APP_GROUP)
         LSUIElement: true
     entitlements:
