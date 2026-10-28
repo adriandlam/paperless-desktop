@@ -6,30 +6,52 @@ import settings from "./shots/settings.png";
 
 const repo = "https://github.com/adriandlam/paperless-desktop";
 
-const features = [
+const rows = [
 	{
-		title: "In the Finder sidebar",
-		text: "Folders for All Documents, Correspondents, Tags, Document Types and Years. A document shows up in every folder it belongs to.",
+		image: finder,
+		alt: "A Finder window open on Paperless, showing receipts as files with thumbnails",
+		title: "Paperless in the Finder sidebar",
+		text: [
+			"Paperless Desktop adds your server as a location in Finder's sidebar, with folders for All Documents, Correspondents, Tags, Document Types and Years. Documents show Paperless's own thumbnails, and download only when you open them.",
+			"Drop a file into any folder to upload it. Dropping it into a tag, correspondent or document type folder sets that on the new document.",
+		],
 	},
 	{
-		title: "Opens like any file",
-		text: "Documents download when you open them, with thumbnails and Quick Look from Paperless's own previews.",
+		image: menu,
+		alt: "The menu bar menu: Last synced today at 13:07, Sync Now, Open in Finder, Settings, Quit",
+		title: "Lives in the menu bar",
+		text: [
+			"A leaf in the menu bar shows when your library last synced, with Sync Now, Open in Finder and Settings. It gets a ! when a sync fails.",
+			"Paperless is checked for changes every 5 minutes, or as often as you choose.",
+		],
 	},
 	{
-		title: "Available offline",
-		text: "Right-click a folder and choose Keep Downloaded, or keep the whole library on your Mac.",
+		image: settings,
+		alt: "The Settings window: server, sign-in, offline and sync options",
+		title: "Connect to your Paperless server",
+		text: [
+			"Enter your server URL and sign in with your username and password, or an API token. The password is used once, to get a token that's kept in the Keychain.",
+			"Turn on Make all documents available offline to keep the whole library on your Mac.",
+		],
+	},
+];
+
+const reasons = [
+	{
+		title: "Native Finder integration",
+		text: "Built on Apple's File Provider system, so documents behave like real files in Finder, Quick Look and open dialogs.",
 	},
 	{
-		title: "Drag in to upload",
-		text: "Drop a file into any folder and Paperless consumes it. Drop it into a tag, correspondent or document type and the new document gets that too.",
+		title: "Move to Trash",
+		text: "Trash a document in All Documents and it goes to Paperless's trash, shown in Finder's Trash. Put Back restores it.",
 	},
 	{
-		title: "Paperless tags in Finder",
-		text: "Each document's Paperless tags show up as Finder tags.",
+		title: "Talks only to your server",
+		text: "No accounts and no third-party servers. The app connects straight to your Paperless-ngx server.",
 	},
 	{
-		title: "Signs in once",
-		text: "Your password is used once, to get an API token that's kept in the Keychain.",
+		title: "Free and open source",
+		text: "MIT licensed. Build it from source with Xcode in about two minutes.",
 	},
 ];
 
@@ -48,111 +70,113 @@ const questions = [
 	},
 	{
 		q: "How do I install it?",
-		a: "There's no signed download yet, so you build it from source with Xcode. It takes about two minutes, and the steps are in the README.",
-	},
-	{
-		q: "How often does it sync?",
-		a: "Every 5 minutes by default, which you can change in Settings. Sync Now in the menu bar checks right away.",
+		a: "There's no signed download yet, so you build it from source with Xcode. The steps are in the README.",
 	},
 ];
 
 export default function Home() {
 	return (
-		<main className="px-6 [&>*]:mx-auto [&>*]:max-w-3xl">
-			<header className="flex flex-col items-center pt-24 pb-16 text-center">
-				<Image src={icon} alt="" width={128} height={128} />
-				<h1 className="mt-6 font-semibold text-5xl tracking-tight">
+		<main className="px-6 text-neutral-900">
+			<header className="fade-in flex flex-col items-center pt-20 pb-16 text-center">
+				<Image src={icon} alt="" width={112} height={112} />
+				<h1 className="mt-5 font-semibold text-4xl tracking-tight">
 					Paperless Desktop
 				</h1>
-				<p className="mt-4 text-neutral-600 text-xl dark:text-neutral-400">
-					Your Paperless-ngx library in Finder, the way iCloud Drive is.
+				<p className="mt-4 max-w-lg text-lg text-neutral-600">
+					Your documents from Paperless-ngx, right in the macOS Finder.
 				</p>
 				<div className="mt-8 flex gap-3">
 					<a
 						href={`${repo}#install`}
-						className="rounded-full bg-leaf px-5 py-2.5 font-medium text-white hover:opacity-90"
+						className="rounded-lg bg-leaf px-5 py-2.5 font-medium text-white transition-opacity hover:opacity-85"
 					>
 						Install
 					</a>
 					<a
 						href={repo}
-						className="rounded-full px-5 py-2.5 font-medium ring-1 ring-neutral-300 hover:bg-neutral-100 dark:ring-neutral-700 dark:hover:bg-neutral-900"
+						className="rounded-lg border border-neutral-300 px-5 py-2.5 font-medium transition-colors hover:bg-neutral-100"
 					>
 						View on GitHub
 					</a>
 				</div>
-				<p className="mt-4 text-neutral-500 text-sm">
-					Free and open source. macOS 15 or later.
+				<p className="mt-5 flex gap-5 text-neutral-500 text-sm">
+					<a
+						href={`${repo}/issues`}
+						className="transition-colors hover:text-neutral-900"
+					>
+						Report an issue
+					</a>
+					<a href={repo} className="transition-colors hover:text-neutral-900">
+						View source
+					</a>
 				</p>
 			</header>
 
-			<Image
-				src={finder}
-				alt="A Finder window open on Paperless, showing receipts as files with thumbnails"
-				className="h-auto w-full max-w-5xl!"
-			/>
-
-			<section className="grid gap-10 py-16 sm:grid-cols-2">
-				{features.map((f) => (
-					<div key={f.title}>
-						<h2 className="font-semibold">{f.title}</h2>
-						<p className="mt-1 text-neutral-600 dark:text-neutral-400">
-							{f.text}
-						</p>
-					</div>
+			<div className="mx-auto max-w-4xl space-y-24 py-8">
+				{rows.map((r, i) => (
+					<section
+						key={r.title}
+						className="reveal grid items-center gap-10 md:grid-cols-2"
+					>
+						<Image
+							src={r.image}
+							alt={r.alt}
+							// Retina screenshots: never show them past their real size
+							style={{ maxWidth: r.image.width / 2 }}
+							className={`mx-auto h-auto w-full ${i % 2 ? "md:order-last" : ""}`}
+						/>
+						<div>
+							<h2 className="font-semibold text-2xl tracking-tight">
+								{r.title}
+							</h2>
+							{r.text.map((t) => (
+								<p key={t} className="mt-4 text-neutral-600 leading-relaxed">
+									{t}
+								</p>
+							))}
+						</div>
+					</section>
 				))}
+			</div>
+
+			<section className="reveal mx-auto max-w-4xl py-24">
+				<h2 className="text-center font-semibold text-2xl tracking-tight">
+					Why Paperless Desktop
+				</h2>
+				<div className="mt-10 grid gap-4 sm:grid-cols-2">
+					{reasons.map((r) => (
+						<div
+							key={r.title}
+							className="rounded-xl border border-neutral-200 p-6 transition-colors hover:border-neutral-300"
+						>
+							<h3 className="font-semibold">{r.title}</h3>
+							<p className="mt-2 text-neutral-600 leading-relaxed">{r.text}</p>
+						</div>
+					))}
+				</div>
 			</section>
 
-			<section className="grid items-start gap-10 border-neutral-200 border-t py-16 sm:grid-cols-2 dark:border-neutral-800">
-				<figure>
-					<Image
-						src={menu}
-						alt="The menu bar menu: Last synced today at 13:07, Sync Now, Open in Finder, Settings, Quit"
-						className="h-auto w-full"
-					/>
-					<figcaption className="mt-3 text-neutral-600 dark:text-neutral-400">
-						The leaf in the menu bar shows when the library last synced, and
-						gets a ! if a sync fails.
-					</figcaption>
-				</figure>
-				<figure>
-					<Image
-						src={settings}
-						alt="The Settings window: server, sign-in, offline and sync options"
-						className="h-auto w-full"
-					/>
-					<figcaption className="mt-3 text-neutral-600 dark:text-neutral-400">
-						Sign in with a password or an API token, and choose how often to
-						check for changes.
-					</figcaption>
-				</figure>
-			</section>
-
-			<section className="border-neutral-200 border-t py-16 dark:border-neutral-800">
-				<h2 className="font-semibold text-2xl tracking-tight">Questions</h2>
-				<div className="mt-6 divide-y divide-neutral-200 dark:divide-neutral-800">
+			<section className="reveal mx-auto max-w-2xl pb-24">
+				<h2 className="text-center font-semibold text-2xl tracking-tight">
+					Frequently asked questions
+				</h2>
+				<div className="mt-8 divide-y divide-neutral-200 border-neutral-200 border-y">
 					{questions.map(({ q, a }) => (
-						<details key={q} className="group py-4">
-							<summary className="flex cursor-pointer list-none justify-between gap-4 font-medium">
+						<details key={q} className="group">
+							<summary className="flex cursor-pointer list-none justify-between gap-4 py-4 font-medium">
 								{q}
-								<span className="text-neutral-400 transition-transform group-open:rotate-45">
+								<span className="text-neutral-400 transition-transform duration-200 group-open:rotate-45">
 									+
 								</span>
 							</summary>
-							<p className="mt-2 text-neutral-600 dark:text-neutral-400">{a}</p>
+							<p className="pb-4 text-neutral-600 leading-relaxed">{a}</p>
 						</details>
 					))}
 				</div>
 			</section>
 
-			<footer className="flex justify-between border-neutral-200 border-t py-10 text-neutral-500 text-sm dark:border-neutral-800">
-				<span>Not affiliated with Paperless-ngx. MIT licensed.</span>
-				<a
-					href={repo}
-					className="hover:text-neutral-900 dark:hover:text-neutral-100"
-				>
-					GitHub
-				</a>
+			<footer className="pb-10 text-center text-neutral-500 text-sm">
+				Not affiliated with Paperless-ngx. MIT licensed.
 			</footer>
 		</main>
 	);
