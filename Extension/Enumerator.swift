@@ -38,7 +38,8 @@ final class Enumerator: NSObject, NSFileProviderEnumerator {
         guard container == nil else { return observer.finishEnumeratingChanges(upTo: anchor, moreComing: false) }
         Task {
             do {
-                let nodes = try await Store.shared.all(fresh: true)
+                // The root rides along so changes to it (like its capabilities) reach Finder too.
+                let nodes = try await Store.shared.all(fresh: true) + [Item.root.node]
                 var snapshot = Snapshot.load()
                 let (updated, deleted) = diff(from: snapshot.versions, to: nodes)
                 if !updated.isEmpty || !deleted.isEmpty { snapshot.record(nodes) }

@@ -213,7 +213,7 @@ func providerError(_ error: Error) -> Error {
 }
 
 final class Item: NSObject, NSFileProviderItem {
-    static let root = Item(Node(id: Node.root, parent: Node.root, name: "Paperless", version: "root"))
+    static let root = Item(Node(id: Node.root, parent: Node.root, name: "Paperless", version: "root r\(folderRevision)"))
 
     let node: Node
     init(_ node: Node) { self.node = node }
