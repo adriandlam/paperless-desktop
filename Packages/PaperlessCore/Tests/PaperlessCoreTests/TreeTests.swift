@@ -3,15 +3,16 @@ import XCTest
 
 final class TreeTests: XCTestCase {
     func doc(_ id: Int, _ title: String, created: String = "2026-03-01", tags: [Int] = [],
-             correspondent: Int? = nil, archived: Bool = true) -> Document {
+             correspondent: Int? = nil, archived: Bool = true, original: String = "scan.jpg") -> Document {
         Document(id: id, title: title, created: created, modified: "m\(id)", correspondent: correspondent,
-                 documentType: nil, tags: tags, originalFileName: "scan.jpg", archivedFileName: archived ? "a.pdf" : nil)
+                 documentType: nil, tags: tags, originalFileName: original, archivedFileName: archived ? "a.pdf" : nil)
     }
 
     func testTree() {
         let lib = Library(
             documents: [doc(1, "Tax/Return", tags: [7], correspondent: 3), doc(2, "tax-return", tags: [7]),
-                        doc(3, "Photo", created: "2025-05-05", archived: false), doc(4, "")],
+                        doc(3, "Photo", created: "2025-05-05", archived: false), doc(4, ""),
+                        doc(5, "Script", archived: false, original: "run.command")],
             tags: [Named(id: 7, name: "Taxes"), Named(id: 8, name: "Unused")],
             correspondents: [Named(id: 3, name: "CRA")], documentTypes: [])
         let nodes = buildTree(lib, sizes: [1: 386_404])
@@ -20,7 +21,7 @@ final class TreeTests: XCTestCase {
 
         XCTAssertEqual(names[Node.root], ["All Documents", "Correspondents", "Tags", "Document Types", "Years"])
         XCTAssertEqual(names["all"], ["2026-03-01 Tax-Return.pdf", "2026-03-01 tax-return (2).pdf",
-                                      "2025-05-05 Photo.jpg", "2026-03-01 scan.pdf"])
+                                      "2025-05-05 Photo.jpg", "2026-03-01 scan.pdf", "2026-03-01 Script.bin"])
         XCTAssertEqual(names["tags"], ["Taxes"])  // empty tags stay hidden
         XCTAssertEqual(names["tag:7"]?.count, 2)
         XCTAssertEqual(names["correspondent:3"], ["2026-03-01 Tax-Return.pdf"])
