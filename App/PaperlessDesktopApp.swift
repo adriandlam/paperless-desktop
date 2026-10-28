@@ -14,7 +14,7 @@ struct PaperlessDesktopApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("Paperless", systemImage: "doc.text.magnifyingglass") { MenuContent() }
+        MenuBarExtra("Paperless", systemImage: "leaf.fill") { MenuContent() }
         Window("Paperless Desktop", id: "settings") { SettingsView() }
             .windowResizability(.contentSize)
             .defaultLaunchBehavior(Config.load() == nil ? .presented : .suppressed)
