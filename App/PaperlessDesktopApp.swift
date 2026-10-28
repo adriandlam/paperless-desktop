@@ -8,8 +8,7 @@ let domain = NSFileProviderDomain(identifier: NSFileProviderDomainIdentifier("pa
 @main
 struct PaperlessDesktopApp: App {
     init() {
-        // ponytail: polls every 5 minutes while the app runs; Paperless has no push to listen to
-        Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in refresh() }
+        scheduleSync()
         refresh()
     }
 
@@ -24,6 +23,15 @@ struct PaperlessDesktopApp: App {
 /// Tells the Finder extension to check Paperless for changes.
 func refresh() {
     NSFileProviderManager(for: domain)?.signalEnumerator(for: .workingSet) { _ in }
+}
+
+private var syncTimer: Timer?
+
+/// Polls at the interval picked in Settings (seconds; 0 is manual only). Paperless has no push to listen to.
+func scheduleSync() {
+    syncTimer?.invalidate()
+    let interval = UserDefaults.standard.object(forKey: "syncInterval") as? Double ?? 300
+    syncTimer = interval > 0 ? Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in refresh() } : nil
 }
 
 @MainActor func openInFinder() async {
@@ -89,8 +97,10 @@ struct SettingsView: View {
     @State private var code = ""
     @State private var token = ""
     @State private var status = ""
-    @State private var online: Bool?  // whether the last check worked; nil while checking or before one
+    @State private var online: Bool?  // whether the last check worked; nil before one
+    @State private var checking = false
     @State private var offline = Config.load()?.offline ?? false
+    @AppStorage("syncInterval") private var syncInterval = 300.0
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
     @State private var confirmDisconnect = false
 
@@ -98,50 +108,62 @@ struct SettingsView: View {
         Form {
             Section {
                 TextField("Server URL", text: $server, prompt: Text("https://paperless.example.com"))
-                Picker("Sign in with", selection: $useToken) {
+                Picker("Authentication", selection: $useToken) {
                     Text("Password").tag(false)
                     Text("API token").tag(true)
                 }
-                .pickerStyle(.segmented)
-                // Once connected, leaving these empty keeps the saved token.
+                // Once connected, the dots stand for the saved token; leaving the field empty keeps it.
                 if useToken {
-                    SecureField(
-                        "API token", text: $token, prompt: Text(connected ? "Unchanged" : "Paperless → My Profile → API Auth Token"))
+                    SecureField("API token", text: $token, prompt: Text(connected ? "••••••••••••" : "From My Profile in Paperless"))
                 } else {
                     TextField("Username", text: $username)
-                    SecureField("Password", text: $password, prompt: Text(connected ? "Unchanged" : ""))
-                    TextField("2FA code", text: $code, prompt: Text("If your account has one"))
+                    SecureField("Password", text: $password, prompt: Text(connected ? "••••••••" : ""))
+                    TextField("2FA code", text: $code, prompt: Text("Optional"))
                 }
                 LabeledContent("Status") {
-                    HStack(spacing: 6) {
-                        Image(systemName: "circle.fill").font(.system(size: 8))
-                            .foregroundStyle(online == nil ? .gray : online! ? .green : .red)
-                        Text(status)
+                    if checking {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "circle.fill").font(.system(size: 8))
+                                .foregroundStyle(online == nil ? .gray : online! ? .green : .red)
+                            Text(status)
+                        }
                     }
                 }
                 HStack {
                     if connected { Button("Disconnect…") { confirmDisconnect = true } }
                     Spacer()
-                    Button("Test Connection") { Task { await test() } }
+                    Button("Test Connection") { Task { await check() } }
                     Button("Save") { Task { await save() } }.keyboardShortcut(.defaultAction)
                 }
+                .disabled(checking)
             } header: {
                 Text("Paperless Server")
             } footer: {
                 Text("Your password is used once, to get an API token that's kept in the Keychain.")
             }
-            Section {
-                Toggle("Keep all documents downloaded", isOn: $offline)
-                    .onChange(of: offline) {
-                        guard var config = Config.load() else { return }
-                        config.offline = offline
-                        try? config.save()
-                        refresh()
-                    }
-            } header: {
-                Text("Finder")
-            } footer: {
-                Text("Otherwise a document downloads when you open it. Right-click a folder → Keep Downloaded for just that folder.")
+            Section("Sync") {
+                Toggle(isOn: $offline) {
+                    Text("Make all documents available offline")
+                    Text("By default, documents are downloaded when you open them.")
+                }
+                .onChange(of: offline) {
+                    guard var config = Config.load() else { return }
+                    config.offline = offline
+                    try? config.save()
+                    refresh()
+                }
+                // Mail's "Check for new messages" choices.
+                Picker("Check for changes", selection: $syncInterval) {
+                    Text("Every minute").tag(60.0)
+                    Text("Every 5 minutes").tag(300.0)
+                    Text("Every 15 minutes").tag(900.0)
+                    Text("Every 30 minutes").tag(1800.0)
+                    Text("Every hour").tag(3600.0)
+                    Text("Manually").tag(0.0)
+                }
+                .onChange(of: syncInterval) { scheduleSync() }
             }
             Section("System") {
                 Toggle("Open at login", isOn: $openAtLogin)
@@ -156,7 +178,7 @@ struct SettingsView: View {
         .onDisappear { NSApp.setActivationPolicy(.accessory) }
         .task {
             guard connected else { return status = "Not connected" }
-            await check { "Connected as \($0)" }
+            await check()
         }
         .confirmationDialog("Disconnect from Paperless?", isPresented: $confirmDisconnect) {
             Button("Disconnect", role: .destructive) { Task { await disconnect() } }
@@ -181,14 +203,14 @@ struct SettingsView: View {
 
     /// Signs in with the form's credentials and shows the result; returns them if it worked.
     @discardableResult
-    private func check(_ success: (String) -> String) async -> (URL, String)? {
-        online = nil
-        status = "Checking…"
+    private func check() async -> (URL, String)? {
+        checking = true
+        defer { checking = false }
         do {
             let (url, key) = try await credentials()
             username = try await Client(server: url, token: key).username()
             online = true
-            status = success(username)
+            status = "Connected"
             return (url, key)
         } catch {
             online = false
@@ -197,12 +219,8 @@ struct SettingsView: View {
         }
     }
 
-    private func test() async {
-        await check { "Works, signed in as \($0)" }
-    }
-
     private func save() async {
-        guard let (url, key) = await check({ "Connected as \($0)" }) else { return }
+        guard let (url, key) = await check() else { return }
         let previous = Config.load()?.server
         do {
             // Another server's documents shouldn't stay in Finder.
@@ -221,7 +239,7 @@ struct SettingsView: View {
         token = ""
         connected = true
         online = true
-        status = "Connected as \(username)"
+        status = "Connected"
         refresh()
         if previous != url { await openInFinder() }
     }
