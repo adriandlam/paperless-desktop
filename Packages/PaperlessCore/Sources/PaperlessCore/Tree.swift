@@ -33,6 +33,10 @@ public struct Node: Equatable, Sendable {
     public var isUpload: Bool { id.hasPrefix("upload:") }
 }
 
+/// Part of every folder's version: bump it when folders' Finder capabilities change,
+/// since Finder only re-reads an item it already has when the item's version changes.
+public let folderRevision = 2
+
 /// `sizes` maps document id → file size; Finder skips downloading files it thinks are empty.
 /// `offline` marks the top folders keep-downloaded, which everything inside inherits.
 // ponytail: each folder holds its own copy of a document, so offline mode stores a document once per folder it's in;
@@ -52,7 +56,7 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         let tags = doc?.tags.compactMap { tagNames[$0] }.sorted() ?? []
         var node = Node(
             id: id, parent: parent, name: name, documentID: doc?.id,
-            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? name,
+            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? "\(name) r\(folderRevision)",
             created: doc.map { String($0.created.prefix(10)) }, size: size)
         node.tags = tags
         nodes.append(node)
