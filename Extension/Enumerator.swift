@@ -6,7 +6,7 @@ final class Enumerator: NSObject, NSFileProviderEnumerator {
     private let container: String?  // nil = the working set
 
     init(_ id: NSFileProviderItemIdentifier) {
-        container = id == .workingSet ? nil : id == .rootContainer ? Node.root : id.rawValue
+        container = id == .workingSet ? nil : id == .rootContainer ? Node.root : id == .trashContainer ? Node.trash : id.rawValue
     }
 
     func invalidate() {}
@@ -21,7 +21,7 @@ final class Enumerator: NSObject, NSFileProviderEnumerator {
                 } else {
                     items = nodes
                     var snapshot = Snapshot.load()
-                    snapshot.record(nodes)
+                    snapshot.record(nodes, newGeneration: false)
                 }
                 for start in stride(from: 0, to: items.count, by: 200) {
                     observer.didEnumerate(items[start..<min(start + 200, items.count)].map(Item.init))
@@ -41,6 +41,11 @@ final class Enumerator: NSObject, NSFileProviderEnumerator {
                 // The root rides along so changes to it (like its capabilities) reach Finder too.
                 let nodes = try await Store.shared.all(fresh: true) + [Item.root.node]
                 var snapshot = Snapshot.load()
+                // The snapshot is saved before Finder confirms it. If the extension was killed in between, Finder
+                // never got those changes, so diffing against it would lose them: start over with a full listing.
+                guard anchor == syncAnchor(snapshot) else {
+                    return observer.finishEnumeratingWithError(NSFileProviderError(.syncAnchorExpired))
+                }
                 let (updated, deleted) = diff(from: snapshot.versions, to: nodes)
                 if !updated.isEmpty || !deleted.isEmpty { snapshot.record(nodes) }
                 // Parents before children: top folders, then subfolders, then documents.

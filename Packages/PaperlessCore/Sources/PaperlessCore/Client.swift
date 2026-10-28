@@ -22,6 +22,7 @@ public struct Library: Sendable {
     public var tags: [Named]
     public var correspondents: [Named]
     public var documentTypes: [Named]
+    public var trash: [Document] = []
 }
 
 public enum APIError: Error {
@@ -125,12 +126,14 @@ public struct Client: Sendable {
 
     // ponytail: refetches the whole library on every refresh; switch to `modified__gt` deltas if it gets slow
     public func library() async throws -> Library {
-        async let documents: [Document] = all(
-            "api/documents/", fields: "id,title,created,modified,correspondent,document_type,tags,original_file_name,archived_file_name")
+        let fields = "id,title,created,modified,correspondent,document_type,tags,original_file_name,archived_file_name"
+        async let documents: [Document] = all("api/documents/", fields: fields)
         async let tags: [Named] = all("api/tags/", fields: "id,name")
         async let correspondents: [Named] = all("api/correspondents/", fields: "id,name")
         async let types: [Named] = all("api/document_types/", fields: "id,name")
-        return try await Library(documents: documents, tags: tags, correspondents: correspondents, documentTypes: types)
+        async let trash: [Document] = all("api/trash/", fields: fields)
+        return try await Library(
+            documents: documents, tags: tags, correspondents: correspondents, documentTypes: types, trash: trash)
     }
 
     /// Size in bytes of the file `download` returns. Finder never fetches a file it thinks is empty.
@@ -172,6 +175,25 @@ public struct Client: Sendable {
         case "failure", "revoked": return false
         default: return nil
         }
+    }
+
+    /// Moves a document to Paperless's trash, which keeps it for 30 days by default.
+    public func delete(_ id: Int) async throws {
+        var r = request("api/documents/\(id)/")
+        r.httpMethod = "DELETE"
+        let (_, response) = try await URLSession.shared.data(for: r)
+        try check(response)
+    }
+
+    /// Takes a document out of Paperless's trash: `restore` puts it back, `empty` deletes it for good.
+    public func trash(_ action: String, _ id: Int) async throws {
+        var r = request("api/trash/")
+        r.httpMethod = "POST"
+        r.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Always name the document: without a list, Paperless applies the action to the whole trash.
+        r.httpBody = try JSONSerialization.data(withJSONObject: ["documents": [id], "action": action])
+        let (_, response) = try await URLSession.shared.data(for: r)
+        try check(response)
     }
 
     public func thumbnail(_ id: Int) async throws -> Data {

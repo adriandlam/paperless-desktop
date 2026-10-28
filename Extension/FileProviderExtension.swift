@@ -2,7 +2,8 @@ import FileProvider
 import PaperlessCore
 import UniformTypeIdentifiers
 
-/// Finder can browse and download, and files dropped in are uploaded. Nothing else is written back to Paperless.
+/// Finder can browse and download, files dropped in are uploaded, and Finder's Trash is Paperless's trash.
+/// Nothing else is written back to Paperless.
 final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
     private let domain: NSFileProviderDomain
 
@@ -102,8 +103,34 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest,
         completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void
     ) -> Progress {
-        // Only local metadata (last opened, Finder tags) can change on read-only items; keep it local.
-        completionHandler(item, [], false, nil)
+        // Move to Trash and Put Back, for documents in All Documents. Anything else that changes (last opened,
+        // Finder tags) stays on this Mac.
+        // The file is read-only, but an edit that gets through anyway mustn't look like it reached Paperless.
+        if changedFields.contains(.contents), !item.itemIdentifier.rawValue.hasPrefix("upload:") {
+            let error = NSFileProviderError(.cannotSynchronize, userInfo: [NSLocalizedDescriptionKey: "Edits aren't saved to Paperless"])
+            completionHandler(nil, [], false, error)
+            return Progress()
+        }
+        let parent = item.parentItemIdentifier
+        guard changedFields.contains(.parentItemIdentifier), parent == .trashContainer || parent.rawValue == "all" else {
+            completionHandler(item, [], false, nil)
+            return Progress()
+        }
+        Task {
+            do {
+                guard let config = Config.load() else { throw NSFileProviderError(.notAuthenticated) }
+                guard var node = try await Store.shared.node(item.itemIdentifier.rawValue), let id = node.documentID else {
+                    throw NSFileProviderError(.noSuchItem)
+                }
+                if parent == .trashContainer { try await config.client.delete(id) } else { try await config.client.trash("restore", id) }
+                node.parent = parent == .trashContainer ? Node.trash : "all"
+                completionHandler(Item(node), [], false, nil)
+            } catch {
+                completionHandler(nil, [], false, providerError(error))
+            }
+            // Removes or restores its copies in the other folders.
+            try? await NSFileProviderManager(for: domain)?.signalEnumerator(for: .workingSet)
+        }
         return Progress()
     }
 
@@ -112,14 +139,24 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         options: NSFileProviderDeleteItemOptions = [], request: NSFileProviderRequest,
         completionHandler: @escaping (Error?) -> Void
     ) -> Progress {
-        // Only an upload's placeholder (say, one whose upload failed) can go; documents stay in Paperless.
-        guard identifier.rawValue.hasPrefix("upload:") else {
-            completionHandler(NSFileProviderError(.deletionRejected))
-            return Progress()
-        }
         Task {
-            await Store.shared.finishUpload(identifier.rawValue, failed: false)
-            completionHandler(nil)
+            do {
+                // An upload's placeholder (say, one whose upload failed) only exists on this Mac.
+                if identifier.rawValue.hasPrefix("upload:") {
+                    await Store.shared.finishUpload(identifier.rawValue, failed: false)
+                    return completionHandler(nil)
+                }
+                // Empty Trash deletes the document from Paperless for good. Documents outside the trash only get
+                // there through Move to Trash.
+                guard let node = try await Store.shared.node(identifier.rawValue), node.isTrashed, let id = node.documentID else {
+                    throw NSFileProviderError(.deletionRejected)
+                }
+                guard let config = Config.load() else { throw NSFileProviderError(.notAuthenticated) }
+                try await config.client.trash("empty", id)
+                completionHandler(nil)
+            } catch {
+                completionHandler(providerError(error))
+            }
         }
         return Progress()
     }
@@ -223,22 +260,31 @@ func providerError(_ error: Error) -> Error {
 }
 
 final class Item: NSObject, NSFileProviderItem {
-    static let root = Item(Node(id: Node.root, parent: Node.root, name: "Paperless", version: "root r\(folderRevision)"))
+    static let root = Item(Node(id: Node.root, parent: Node.root, name: "Paperless", version: "root r\(revision)"))
 
     let node: Node
     init(_ node: Node) { self.node = node }
 
     var itemIdentifier: NSFileProviderItemIdentifier { node.id == Node.root ? .rootContainer : .init(node.id) }
-    var parentItemIdentifier: NSFileProviderItemIdentifier { node.parent == Node.root ? .rootContainer : .init(node.parent) }
+    var parentItemIdentifier: NSFileProviderItemIdentifier {
+        node.parent == Node.root ? .rootContainer : node.isTrashed ? .trashContainer : .init(node.parent)
+    }
     var filename: String { node.name }
     var contentType: UTType {
         node.isFolder ? .folder : UTType(filenameExtension: (node.name as NSString).pathExtension) ?? .data
     }
     var capabilities: NSFileProviderItemCapabilities {
         if node.isFolder { return [.allowsReading, .allowsContentEnumerating, .allowsAddingSubItems] }
-        return node.isUpload ? [.allowsReading, .allowsDeleting] : .allowsReading
+        if node.isUpload { return [.allowsReading, .allowsWriting, .allowsDeleting] }
+        // Without allowsWriting the system locks the file, which blocks moving it too. fileSystemFlags keeps it read-only.
+        if node.isTrashable { return [.allowsReading, .allowsWriting, .allowsTrashing] }
+        // Put Back and Empty Trash.
+        if node.isTrashed { return [.allowsReading, .allowsWriting, .allowsReparenting, .allowsDeleting] }
+        return .allowsReading
     }
-    var fileSystemFlags: NSFileProviderFileSystemFlags { node.isFolder ? [.userReadable, .userWritable, .userExecutable] : .userReadable }
+    var fileSystemFlags: NSFileProviderFileSystemFlags {
+        node.isFolder ? [.userReadable, .userWritable, .userExecutable] : node.isUpload ? [.userReadable, .userWritable] : .userReadable
+    }
     var documentSize: NSNumber? { node.size.map { NSNumber(value: $0) } }
     // Finder keeps tags as a binary plist of "name\ncolor" strings; 0 = no color.
     var tagData: Data? {
@@ -248,8 +294,7 @@ final class Item: NSObject, NSFileProviderItem {
     }
     var contentPolicy: NSFileProviderContentPolicy { node.keepDownloaded ? .downloadEagerlyAndKeepDownloaded : .inherited }
     var itemVersion: NSFileProviderItemVersion {
-        let v = Data(node.version.utf8)
-        return NSFileProviderItemVersion(contentVersion: v, metadataVersion: v)
+        NSFileProviderItemVersion(contentVersion: Data(node.contentVersion.utf8), metadataVersion: Data(node.version.utf8))
     }
     // The document's date, so Finder's date column sorts by when the document is from. An upload's is the paste time.
     var creationDate: Date? {

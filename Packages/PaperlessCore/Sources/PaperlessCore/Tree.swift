@@ -4,12 +4,17 @@ import Foundation
 /// A document appears once per folder it belongs to, each copy with its own id.
 public struct Node: Equatable, Sendable {
     public static let root = "root"
+    /// Paperless's trash, shown in Finder's Trash.
+    public static let trash = "trash"
 
     public var id: String
     public var parent: String
     public var name: String
     public var documentID: Int?
     public var version: String
+    /// The part of `version` that means the file itself changed. Kept apart so a rename, a tag or a `revision`
+    /// bump doesn't make Finder download the file again.
+    public var contentVersion = ""
     public var created: String?
     public var size: Int?
     public var keepDownloaded = false
@@ -31,11 +36,14 @@ public struct Node: Equatable, Sendable {
     public var isFolder: Bool { documentID == nil && !isUpload }
     /// A file dropped into Finder that Paperless is still consuming.
     public var isUpload: Bool { id.hasPrefix("upload:") }
+    /// Only from All Documents: trashing from a tag or correspondent folder would look like removing it from there.
+    public var isTrashable: Bool { parent == "all" && documentID != nil }
+    public var isTrashed: Bool { parent == Node.trash }
 }
 
-/// Part of every folder's version: bump it when folders' Finder capabilities change,
+/// Part of every item's version: bump it when items' Finder capabilities change,
 /// since Finder only re-reads an item it already has when the item's version changes.
-public let folderRevision = 2
+public let revision = 7
 
 /// `sizes` maps document id → file size; Finder skips downloading files it thinks are empty.
 /// `offline` marks the top folders keep-downloaded, which everything inside inherits.
@@ -56,23 +64,26 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         let tags = doc?.tags.compactMap { tagNames[$0] }.sorted() ?? []
         var node = Node(
             id: id, parent: parent, name: name, documentID: doc?.id,
-            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? "\(name) \(date ?? "") r\(folderRevision)",
+            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags) r\(revision)" } ?? "\(name) \(date ?? "") r\(revision)",
             created: date, size: size)
         node.tags = tags
+        node.contentVersion = doc.map { "\($0.modified) \(size ?? 0)" } ?? ""
         nodes.append(node)
     }
 
     // A folder is dated by its newest document, the way a Finder folder shows its latest change.
     func newest(_ docs: [Document]) -> String? { docs.map { String($0.created.prefix(10)) }.max() }
 
+    func document(_ d: Document, _ id: String, in parent: String) {
+        add(
+            id, in: parent, named: "\(d.created.prefix(10)) \(title(d))", ext: "." + fileExtension(d), doc: d,
+            date: String(d.created.prefix(10)))
+    }
+
     func folder(_ id: String, _ name: String, in parent: String, docs: [Document]) {
         add(id, in: parent, named: name, date: newest(docs))
         let sorted = docs.sorted { ($0.created, -$0.id) > ($1.created, -$1.id) }
-        for d in sorted {
-            add(
-                "doc:\(d.id)@\(id)", in: id, named: "\(d.created.prefix(10)) \(title(d))", ext: "." + fileExtension(d), doc: d,
-                date: String(d.created.prefix(10)))
-        }
+        for d in sorted { document(d, "doc:\(d.id)@\(id)", in: id) }
     }
 
     func group(_ id: String, _ name: String, _ members: [(id: String, name: String, docs: [Document])]) {
@@ -89,6 +100,11 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
     group("types", "Document Types", lib.documentTypes.map { t in ("type:\(t.id)", t.name, docs.filter { $0.documentType == t.id }) })
     let years = Set(docs.map { String($0.created.prefix(4)) }).sorted(by: >)
     group("years", "Years", years.map { y in ("year:\(y)", y, docs.filter { $0.created.hasPrefix(y) }) })
+    // Same ids as in All Documents, so Move to Trash and Put Back move one item rather than swapping it for another.
+    for d in lib.trash {
+        document(d, "doc:\(d.id)@all", in: Node.trash)
+        nodes[nodes.count - 1].version += " trashed"
+    }
     if offline {
         for i in nodes.indices where nodes[i].parent == Node.root {
             nodes[i].keepDownloaded = true
