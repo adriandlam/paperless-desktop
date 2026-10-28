@@ -139,6 +139,10 @@ public struct Client: Sendable {
         r.httpMethod = "POST"
         r.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         let (data, response) = try await URLSession.shared.upload(for: r, from: body)
+        // A refused file comes back as {"document": ["File type application/json not supported"]}.
+        if (response as? HTTPURLResponse)?.statusCode == 400, let reasons = try? decoder.decode([String: [String]].self, from: data) {
+            throw APIError.rejected(reasons.values.joined().joined(separator: " "))
+        }
         try check(response)
         return try decoder.decode(String.self, from: data)
     }

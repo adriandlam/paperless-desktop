@@ -207,6 +207,8 @@ actor Store {
 func providerError(_ error: Error) -> Error {
     switch error {
     case APIError.unauthorized: NSFileProviderError(.notAuthenticated)
+    // Finder shows the reason and doesn't retry until the file changes.
+    case APIError.rejected(let reason): NSFileProviderError(.cannotSynchronize, userInfo: [NSLocalizedDescriptionKey: reason])
     case is URLError, APIError.http: NSFileProviderError(.serverUnreachable)
     default: error
     }

@@ -63,7 +63,9 @@ minutes, or right away with Refresh Now.
 
 - In offline mode a document is stored once per folder it appears in.
 - Finder tags you add yourself stay on this Mac.
-- A file that fails to upload stays in place with "(upload failed)" in its name; check the file
+- A file Paperless won't take (an unsupported type, say) keeps a sync error in Finder with
+  Paperless's reason. Delete it there.
+- A file Paperless accepts but then fails to consume stays in place with "(upload failed)" in its name; check the file
   tasks page in Paperless for the reason, then delete the file.
 
 ## Development
