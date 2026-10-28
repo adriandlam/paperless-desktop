@@ -15,8 +15,10 @@ public struct Node: Equatable, Sendable {
     public var keepDownloaded = false
     public var tags: [String] = []  // Paperless tag names, shown as Finder tags
 
-    public init(id: String, parent: String, name: String, documentID: Int? = nil, version: String,
-                created: String? = nil, size: Int? = nil) {
+    public init(
+        id: String, parent: String, name: String, documentID: Int? = nil, version: String,
+        created: String? = nil, size: Int? = nil
+    ) {
         self.id = id
         self.parent = parent
         self.name = name
@@ -48,9 +50,10 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         taken[parent, default: []].insert(name.lowercased())
         let size = doc.flatMap { sizes[$0.id] }
         let tags = doc?.tags.compactMap { tagNames[$0] }.sorted() ?? []
-        var node = Node(id: id, parent: parent, name: name, documentID: doc?.id,
-                        version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? name,
-                        created: doc.map { String($0.created.prefix(10)) }, size: size)
+        var node = Node(
+            id: id, parent: parent, name: name, documentID: doc?.id,
+            version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? name,
+            created: doc.map { String($0.created.prefix(10)) }, size: size)
         node.tags = tags
         nodes.append(node)
     }
@@ -70,7 +73,9 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
 
     let docs = lib.documents
     folder("all", "All Documents", in: Node.root, docs: docs)
-    group("correspondents", "Correspondents", lib.correspondents.map { c in ("correspondent:\(c.id)", c.name, docs.filter { $0.correspondent == c.id }) })
+    group(
+        "correspondents", "Correspondents",
+        lib.correspondents.map { c in ("correspondent:\(c.id)", c.name, docs.filter { $0.correspondent == c.id }) })
     group("tags", "Tags", lib.tags.map { t in ("tag:\(t.id)", t.name, docs.filter { $0.tags.contains(t.id) }) })
     group("types", "Document Types", lib.documentTypes.map { t in ("type:\(t.id)", t.name, docs.filter { $0.documentType == t.id }) })
     let years = Set(docs.map { String($0.created.prefix(4)) }).sorted(by: >)
@@ -109,8 +114,10 @@ private func title(_ d: Document) -> String {
 }
 
 /// Document types only: an uploaded "invoice.command" must not become a script Finder runs on double-click.
-private let documentExtensions: Set = ["pdf", "png", "jpg", "jpeg", "heic", "tif", "tiff", "gif", "webp", "txt", "csv", "md",
-                                       "eml", "rtf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp"]
+private let documentExtensions: Set = [
+    "pdf", "png", "jpg", "jpeg", "heic", "tif", "tiff", "gif", "webp", "txt", "csv", "md",
+    "eml", "rtf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "ods", "odp",
+]
 
 private func fileExtension(_ d: Document) -> String {
     if d.archivedFileName != nil { return "pdf" }

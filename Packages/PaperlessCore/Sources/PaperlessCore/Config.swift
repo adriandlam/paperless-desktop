@@ -21,7 +21,8 @@ public struct Config: Codable, Sendable {
 
     public static func load() -> Config? {
         guard let data = try? Data(contentsOf: shared("config.json")),
-              let config = try? JSONDecoder().decode(Config.self, from: data) else { return nil }
+            let config = try? JSONDecoder().decode(Config.self, from: data)
+        else { return nil }
         // 0.1 kept the token in this file; move it to the keychain.
         struct Legacy: Decodable { var token: String? }
         if let token = (try? JSONDecoder().decode(Legacy.self, from: data))?.token, (try? Token.save(token)) != nil {
@@ -46,8 +47,10 @@ public struct Config: Codable, Sendable {
 /// The API token, in the keychain group the app and the extension share.
 public enum Token {
     private static var query: [CFString: Any] {
-        [kSecClass: kSecClassGenericPassword, kSecAttrService: "Paperless API token",
-         kSecAttrAccessGroup: appGroup, kSecUseDataProtectionKeychain: true]
+        [
+            kSecClass: kSecClassGenericPassword, kSecAttrService: "Paperless API token",
+            kSecAttrAccessGroup: appGroup, kSecUseDataProtectionKeychain: true,
+        ]
     }
 
     public static func load() -> String? {

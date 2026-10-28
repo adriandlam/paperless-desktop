@@ -13,8 +13,10 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
 
     func invalidate() {}
 
-    func item(for identifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest,
-              completionHandler: @escaping (NSFileProviderItem?, Error?) -> Void) -> Progress {
+    func item(
+        for identifier: NSFileProviderItemIdentifier, request: NSFileProviderRequest,
+        completionHandler: @escaping (NSFileProviderItem?, Error?) -> Void
+    ) -> Progress {
         Task {
             if identifier == .rootContainer { return completionHandler(Item.root, nil) }
             do {
@@ -27,9 +29,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return Progress()
     }
 
-    func fetchContents(for itemIdentifier: NSFileProviderItemIdentifier, version requestedVersion: NSFileProviderItemVersion?,
-                       request: NSFileProviderRequest,
-                       completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void) -> Progress {
+    func fetchContents(
+        for itemIdentifier: NSFileProviderItemIdentifier, version requestedVersion: NSFileProviderItemVersion?,
+        request: NSFileProviderRequest,
+        completionHandler: @escaping (URL?, NSFileProviderItem?, Error?) -> Void
+    ) -> Progress {
         let progress = Progress(totalUnitCount: 1)
         Task {
             do {
@@ -47,9 +51,11 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return progress
     }
 
-    func createItem(basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?,
-                    options: NSFileProviderCreateItemOptions = [], request: NSFileProviderRequest,
-                    completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
+    func createItem(
+        basedOn itemTemplate: NSFileProviderItem, fields: NSFileProviderItemFields, contents url: URL?,
+        options: NSFileProviderCreateItemOptions = [], request: NSFileProviderRequest,
+        completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void
+    ) -> Progress {
         // New folders, and Finder's .DS_Store and the like, stay on this Mac instead of showing a sync error.
         guard let url, itemTemplate.contentType?.conforms(to: .folder) != true, !itemTemplate.filename.hasPrefix(".") else {
             completionHandler(nil, [], false, NSFileProviderError(.excludedFromSync))
@@ -83,23 +89,27 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
                 try? await Task.sleep(for: .seconds(5))
                 guard let succeeded = try? await client.uploadSucceeded(task) else { continue }
                 await Store.shared.finishUpload(id, failed: !succeeded)
-                NSFileProviderManager(for: domain)?.signalEnumerator(for: .workingSet) { _ in }
+                try? await NSFileProviderManager(for: domain)?.signalEnumerator(for: .workingSet)
                 return
             }
         }
     }
 
-    func modifyItem(_ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields,
-                    contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest,
-                    completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void) -> Progress {
+    func modifyItem(
+        _ item: NSFileProviderItem, baseVersion version: NSFileProviderItemVersion, changedFields: NSFileProviderItemFields,
+        contents newContents: URL?, options: NSFileProviderModifyItemOptions = [], request: NSFileProviderRequest,
+        completionHandler: @escaping (NSFileProviderItem?, NSFileProviderItemFields, Bool, Error?) -> Void
+    ) -> Progress {
         // Only local metadata (last opened, Finder tags) can change on read-only items; keep it local.
         completionHandler(item, [], false, nil)
         return Progress()
     }
 
-    func deleteItem(identifier: NSFileProviderItemIdentifier, baseVersion version: NSFileProviderItemVersion,
-                    options: NSFileProviderDeleteItemOptions = [], request: NSFileProviderRequest,
-                    completionHandler: @escaping (Error?) -> Void) -> Progress {
+    func deleteItem(
+        identifier: NSFileProviderItemIdentifier, baseVersion version: NSFileProviderItemVersion,
+        options: NSFileProviderDeleteItemOptions = [], request: NSFileProviderRequest,
+        completionHandler: @escaping (Error?) -> Void
+    ) -> Progress {
         // Only an upload's placeholder (say, one whose upload failed) can go; documents stay in Paperless.
         guard identifier.rawValue.hasPrefix("upload:") else {
             completionHandler(NSFileProviderError(.deletionRejected))
@@ -112,17 +122,21 @@ final class FileProviderExtension: NSObject, NSFileProviderReplicatedExtension {
         return Progress()
     }
 
-    func enumerator(for containerItemIdentifier: NSFileProviderItemIdentifier,
-                    request: NSFileProviderRequest) throws -> NSFileProviderEnumerator {
+    func enumerator(
+        for containerItemIdentifier: NSFileProviderItemIdentifier,
+        request: NSFileProviderRequest
+    ) throws -> NSFileProviderEnumerator {
         Enumerator(containerItemIdentifier)
     }
 }
 
 extension FileProviderExtension: NSFileProviderThumbnailing {
     /// Finder icons come from Paperless's own previews, so nothing has to download first.
-    func fetchThumbnails(for itemIdentifiers: [NSFileProviderItemIdentifier], requestedSize size: CGSize,
-                         perThumbnailCompletionHandler: @escaping (NSFileProviderItemIdentifier, Data?, Error?) -> Void,
-                         completionHandler: @escaping (Error?) -> Void) -> Progress {
+    func fetchThumbnails(
+        for itemIdentifiers: [NSFileProviderItemIdentifier], requestedSize size: CGSize,
+        perThumbnailCompletionHandler: @escaping (NSFileProviderItemIdentifier, Data?, Error?) -> Void,
+        completionHandler: @escaping (Error?) -> Void
+    ) -> Progress {
         let progress = Progress(totalUnitCount: Int64(itemIdentifiers.count))
         Task {
             for identifier in itemIdentifiers {
@@ -218,7 +232,8 @@ final class Item: NSObject, NSFileProviderItem {
     var documentSize: NSNumber? { node.size.map { NSNumber(value: $0) } }
     // Finder keeps tags as a binary plist of "name\ncolor" strings; 0 = no color.
     var tagData: Data? {
-        node.tags.isEmpty ? nil
+        node.tags.isEmpty
+            ? nil
             : try? PropertyListSerialization.data(fromPropertyList: node.tags.map { "\($0)\n0" }, format: .binary, options: 0)
     }
     var contentPolicy: NSFileProviderContentPolicy { node.keepDownloaded ? .downloadEagerlyAndKeepDownloaded : .inherited }
