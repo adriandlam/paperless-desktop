@@ -93,15 +93,15 @@ struct SettingsView: View {
         }
         status = "Checking…"
         do {
-            // Only the token is saved; the password is used once, here.
+            // Only the token is saved, in the keychain; the password is used once, here.
             let key = token.isEmpty
                 ? try await Client.token(server: url, username: username, password: password, code: code)
                 : token.trimmingCharacters(in: .whitespaces)
-            let config = Config(server: url, token: key, offline: offline)
-            try await config.client.check()
+            try await Client(server: url, token: key).check()
             password = ""
             code = ""
-            try config.save()
+            try Token.save(key)
+            try Config(server: url, offline: offline).save()
             try await NSFileProviderManager.add(domain)
             try? SMAppService.mainApp.register()  // keep refreshing after a reboot
             refresh()

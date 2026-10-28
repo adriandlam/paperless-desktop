@@ -1,7 +1,8 @@
 import Foundation
+import Security
 
-/// The app group both the app and the Finder extension can read.
-public let appGroup = "X5A5J9HMFU.org.adrianlam.PaperlessDesktop"
+/// The app group (and keychain group) both the app and the Finder extension can read. Set in Signing.xcconfig.
+public let appGroup = Bundle.main.object(forInfoDictionaryKey: "AppGroup") as? String ?? ""
 
 private func shared(_ name: String) -> URL {
     FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup)!.appending(path: name)
@@ -9,21 +10,24 @@ private func shared(_ name: String) -> URL {
 
 public struct Config: Codable, Sendable {
     public var server: URL
-    public var token: String
     public var offline: Bool?  // keep every document downloaded
 
-    public init(server: URL, token: String, offline: Bool? = nil) {
+    public init(server: URL, offline: Bool? = nil) {
         self.server = server
-        self.token = token
         self.offline = offline
     }
 
-    public var client: Client { Client(server: server, token: token) }
+    public var client: Client { Client(server: server, token: Token.load() ?? "") }
 
-    // ponytail: token lives in the app group container (mode 600), as Immich Desktop does;
-    // move it to a shared keychain group once the app is signed with a provisioning profile
     public static func load() -> Config? {
-        try? JSONDecoder().decode(Config.self, from: Data(contentsOf: shared("config.json")))
+        guard let data = try? Data(contentsOf: shared("config.json")),
+              let config = try? JSONDecoder().decode(Config.self, from: data) else { return nil }
+        // 0.1 kept the token in this file; move it to the keychain.
+        struct Legacy: Decodable { var token: String? }
+        if let token = (try? JSONDecoder().decode(Legacy.self, from: data))?.token, (try? Token.save(token)) != nil {
+            try? config.save()
+        }
+        return config
     }
 
     public func save() throws {
@@ -33,8 +37,38 @@ public struct Config: Codable, Sendable {
     }
 
     public static func delete() {
+        Token.delete()
         try? FileManager.default.removeItem(at: shared("config.json"))
         try? FileManager.default.removeItem(at: shared("snapshot.json"))
+    }
+}
+
+/// The API token, in the keychain group the app and the extension share.
+public enum Token {
+    private static var query: [CFString: Any] {
+        [kSecClass: kSecClassGenericPassword, kSecAttrService: "Paperless API token",
+         kSecAttrAccessGroup: appGroup, kSecUseDataProtectionKeychain: true]
+    }
+
+    public static func load() -> String? {
+        var q = query
+        q[kSecReturnData] = true
+        var data: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &data) == errSecSuccess, let data = data as? Data else { return nil }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    public static func save(_ token: String) throws {
+        delete()
+        var q = query
+        q[kSecValueData] = Data(token.utf8)
+        q[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock  // the extension refreshes while the screen is locked
+        let status = SecItemAdd(q as CFDictionary, nil)
+        guard status == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(status)) }
+    }
+
+    public static func delete() {
+        SecItemDelete(query as CFDictionary)
     }
 }
 

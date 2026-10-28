@@ -3,11 +3,12 @@ options:
   bundleIdPrefix: org.adrianlam
   deploymentTarget:
     macOS: "15.0"
+configFiles:
+  Debug: Signing.xcconfig
+  Release: Signing.xcconfig
 settings:
   base:
-    DEVELOPMENT_TEAM: X5A5J9HMFU
-    CODE_SIGN_STYLE: Manual
-    CODE_SIGN_IDENTITY: Apple Development
+    CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: 1
@@ -24,18 +25,20 @@ targets:
       - package: PaperlessCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.adrianlam.PaperlessDesktop
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).PaperlessDesktop
     info:
       path: App/Info.plist
       properties:
         CFBundleDisplayName: Paperless Desktop
+        AppGroup: $(APP_GROUP)
         LSUIElement: true
     entitlements:
       path: App/App.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
-        com.apple.security.application-groups: [X5A5J9HMFU.org.adrianlam.PaperlessDesktop]
+        com.apple.security.application-groups: [$(APP_GROUP)]
+        keychain-access-groups: [$(APP_GROUP)]
   PaperlessFileProvider:
     type: app-extension
     platform: macOS
@@ -44,19 +47,21 @@ targets:
       - package: PaperlessCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: org.adrianlam.PaperlessDesktop.FileProvider
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).PaperlessDesktop.FileProvider
     info:
       path: Extension/Info.plist
       properties:
         CFBundleDisplayName: Paperless
+        AppGroup: $(APP_GROUP)
         NSExtension:
           NSExtensionPointIdentifier: com.apple.fileprovider-nonui
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FileProviderExtension
-          NSExtensionFileProviderDocumentGroup: X5A5J9HMFU.org.adrianlam.PaperlessDesktop
+          NSExtensionFileProviderDocumentGroup: $(APP_GROUP)
           NSExtensionFileProviderSupportsEnumeration: true
     entitlements:
       path: Extension/Extension.entitlements
       properties:
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
-        com.apple.security.application-groups: [X5A5J9HMFU.org.adrianlam.PaperlessDesktop]
+        com.apple.security.application-groups: [$(APP_GROUP)]
+        keychain-access-groups: [$(APP_GROUP)]
