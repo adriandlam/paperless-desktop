@@ -44,7 +44,7 @@ const questions = [
 	},
 	{
 		q: "Can it change or delete my documents?",
-		a: "It only adds the files you drop in. Renaming, moving or deleting in Finder doesn't touch Paperless.",
+		a: "It uploads the files you drop in. Move to Trash in All Documents sends a document to Paperless's trash, which shows up in Finder's Trash: Put Back restores it, and emptying the Trash deletes it for good. Nothing else changes in Paperless.",
 	},
 	{
 		q: "How do I install it?",
