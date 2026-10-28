@@ -13,6 +13,7 @@ public struct Node: Equatable, Sendable {
     public var created: String?
     public var size: Int?
     public var keepDownloaded = false
+    public var tags: [String] = []  // Paperless tag names, shown as Finder tags
 
     public init(id: String, parent: String, name: String, documentID: Int? = nil, version: String,
                 created: String? = nil, size: Int? = nil) {
@@ -25,7 +26,9 @@ public struct Node: Equatable, Sendable {
         self.size = size
     }
 
-    public var isFolder: Bool { documentID == nil }
+    public var isFolder: Bool { documentID == nil && !isUpload }
+    /// A file dropped into Finder that Paperless is still consuming.
+    public var isUpload: Bool { id.hasPrefix("upload:") }
 }
 
 /// `sizes` maps document id → file size; Finder skips downloading files it thinks are empty.
@@ -35,6 +38,7 @@ public struct Node: Equatable, Sendable {
 public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = false) -> [Node] {
     var nodes: [Node] = []
     var taken: [String: Set<String>] = [:]  // lowercased, since APFS is case-insensitive
+    let tagNames = Dictionary(lib.tags.map { ($0.id, $0.name) }, uniquingKeysWith: { a, _ in a })
 
     func add(_ id: String, in parent: String, named base: String, ext: String = "", doc: Document? = nil) {
         var name = clean(base) + ext
@@ -43,9 +47,12 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         }
         taken[parent, default: []].insert(name.lowercased())
         let size = doc.flatMap { sizes[$0.id] }
-        nodes.append(Node(id: id, parent: parent, name: name, documentID: doc?.id,
-                          version: doc.map { "\($0.modified) \(size ?? 0) \(name)" } ?? name,
-                          created: doc.map { String($0.created.prefix(10)) }, size: size))
+        let tags = doc?.tags.compactMap { tagNames[$0] }.sorted() ?? []
+        var node = Node(id: id, parent: parent, name: name, documentID: doc?.id,
+                        version: doc.map { "\($0.modified) \(size ?? 0) \(name) \(tags)" } ?? name,
+                        created: doc.map { String($0.created.prefix(10)) }, size: size)
+        node.tags = tags
+        nodes.append(node)
     }
 
     func folder(_ id: String, _ name: String, in parent: String, docs: [Document]) {
@@ -75,6 +82,18 @@ public func buildTree(_ lib: Library, sizes: [Int: Int] = [:], offline: Bool = f
         }
     }
     return nodes
+}
+
+/// What a file dropped into `folder` gets on upload: that folder's tag, correspondent or document type.
+public func uploadFields(into folder: String) -> [(String, String)] {
+    let parts = folder.split(separator: ":", maxSplits: 1).map(String.init)
+    guard parts.count == 2 else { return [] }
+    switch parts[0] {
+    case "tag": return [("tags", parts[1])]
+    case "correspondent": return [("correspondent", parts[1])]
+    case "type": return [("document_type", parts[1])]
+    default: return []
+    }
 }
 
 /// What changed since `old` (node id → version): the working set's change feed.

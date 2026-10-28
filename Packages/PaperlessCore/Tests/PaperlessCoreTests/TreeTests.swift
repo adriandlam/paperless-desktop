@@ -18,6 +18,7 @@ final class TreeTests: XCTestCase {
         let nodes = buildTree(lib, sizes: [1: 386_404])
         let names = Dictionary(grouping: nodes, by: \.parent).mapValues { Set($0.map(\.name)) }
         XCTAssertEqual(nodes.first { $0.id == "doc:1@all" }?.size, 386_404)
+        XCTAssertEqual(nodes.first { $0.id == "doc:1@all" }?.tags, ["Taxes"])
 
         XCTAssertEqual(names[Node.root], ["All Documents", "Correspondents", "Tags", "Document Types", "Years"])
         XCTAssertEqual(names["all"], ["2026-03-01 Tax-Return.pdf", "2026-03-01 tax-return (2).pdf",
@@ -31,6 +32,15 @@ final class TreeTests: XCTestCase {
         let offline = buildTree(lib, offline: true)
         XCTAssertEqual(offline.filter(\.keepDownloaded).map(\.id), ["all", "correspondents", "tags", "types", "years"])
         XCTAssertNotEqual(offline.first { $0.id == "all" }?.version, nodes.first { $0.id == "all" }?.version)
+    }
+
+    func testUploadFields() {
+        XCTAssertEqual(uploadFields(into: "tag:7").map { "\($0)=\($1)" }, ["tags=7"])
+        XCTAssertEqual(uploadFields(into: "correspondent:3").map { "\($0)=\($1)" }, ["correspondent=3"])
+        XCTAssertEqual(uploadFields(into: "type:2").map { "\($0)=\($1)" }, ["document_type=2"])
+        XCTAssertTrue(uploadFields(into: "year:2025").isEmpty)
+        XCTAssertTrue(uploadFields(into: "all").isEmpty)
+        XCTAssertFalse(Node(id: "upload:abc", parent: "all", name: "a.pdf", version: "1").isFolder)
     }
 
     func testDiff() {

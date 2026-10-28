@@ -122,6 +122,36 @@ public struct Client: Sendable {
         return (doc.archivedFileName != nil ? m.archiveSize : m.originalSize) ?? 0
     }
 
+    /// Hands a file to Paperless's consumer, as its consume folder would. Returns the task id to poll.
+    public func upload(_ file: URL, name: String, fields: [(String, String)]) async throws -> String {
+        let boundary = UUID().uuidString
+        var body = Data()
+        func part(_ disposition: String, _ value: Data) {
+            body += Data("--\(boundary)\r\nContent-Disposition: form-data; \(disposition)\r\n\r\n".utf8) + value + Data("\r\n".utf8)
+        }
+        for (key, value) in fields { part("name=\"\(key)\"", Data(value.utf8)) }
+        part("name=\"document\"; filename=\"\(name.replacingOccurrences(of: "\"", with: "'"))\"", try Data(contentsOf: file))
+        body += Data("--\(boundary)--\r\n".utf8)
+        var r = request("api/documents/post_document/")
+        r.httpMethod = "POST"
+        r.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        let (data, response) = try await URLSession.shared.upload(for: r, from: body)
+        try check(response)
+        return try decoder.decode(String.self, from: data)
+    }
+
+    /// nil while Paperless is still consuming the upload, then whether it became a document.
+    public func uploadSucceeded(_ task: String) async throws -> Bool? {
+        struct Task: Decodable { var status: String }
+        let data = try await get("api/tasks/", [URLQueryItem(name: "task_id", value: task)])
+        let tasks = try (try? decoder.decode(Page<Task>.self, from: data).results) ?? decoder.decode([Task].self, from: data)
+        switch tasks.first?.status.lowercased() {
+        case "success": return true
+        case "failure", "revoked": return false
+        default: return nil
+        }
+    }
+
     public func thumbnail(_ id: Int) async throws -> Data {
         try await get("api/documents/\(id)/thumb/")
     }

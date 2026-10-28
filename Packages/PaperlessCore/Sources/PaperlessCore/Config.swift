@@ -86,6 +86,16 @@ public struct Snapshot: Codable, Sendable {
     public mutating func record(_ nodes: [Node]) {
         generation += 1
         versions = Dictionary(nodes.map { ($0.id, $0.version) }, uniquingKeysWith: { a, _ in a })
+        save()
+    }
+
+    /// Notes one item Finder learned about outside an enumeration, so a later refresh can delete it.
+    public mutating func add(_ node: Node) {
+        versions[node.id] = node.version
+        save()
+    }
+
+    private func save() {
         try? JSONEncoder().encode(self).write(to: shared("snapshot.json"), options: .atomic)
     }
 }
