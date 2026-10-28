@@ -1,0 +1,62 @@
+name: PaperlessDesktop
+options:
+  bundleIdPrefix: org.adrianlam
+  deploymentTarget:
+    macOS: "15.0"
+settings:
+  base:
+    DEVELOPMENT_TEAM: X5A5J9HMFU
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: Apple Development
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+packages:
+  PaperlessCore:
+    path: Packages/PaperlessCore
+targets:
+  PaperlessDesktop:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - target: PaperlessFileProvider
+      - package: PaperlessCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.adrianlam.PaperlessDesktop
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: Paperless Desktop
+        LSUIElement: true
+    entitlements:
+      path: App/App.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [X5A5J9HMFU.org.adrianlam.PaperlessDesktop]
+  PaperlessFileProvider:
+    type: app-extension
+    platform: macOS
+    sources: [Extension]
+    dependencies:
+      - package: PaperlessCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.adrianlam.PaperlessDesktop.FileProvider
+    info:
+      path: Extension/Info.plist
+      properties:
+        CFBundleDisplayName: Paperless
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.fileprovider-nonui
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).FileProviderExtension
+          NSExtensionFileProviderDocumentGroup: X5A5J9HMFU.org.adrianlam.PaperlessDesktop
+          NSExtensionFileProviderSupportsEnumeration: true
+    entitlements:
+      path: Extension/Extension.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups: [X5A5J9HMFU.org.adrianlam.PaperlessDesktop]
